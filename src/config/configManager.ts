@@ -1,13 +1,11 @@
-import { PublisherConfig, Plugin } from '../core/types.js';
-import { ConfigurationError } from '../core/errors.js';
+import { PublisherConfig, Plugin } from '../core/types';
+import { ConfigurationError } from '../core/errors';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv';
 
-// Use ESM __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// 使用 process.cwd() 获取当前工作目录
+const __dirname = process.cwd();
 
 /**
  * 配置管理器

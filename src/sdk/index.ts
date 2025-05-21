@@ -1,10 +1,10 @@
-import { WeChatPublisher } from '../core/Publisher.js';
-import type { PublisherConfig, ArticleContent } from '../core/types.js';
-import { MarkdownReaderPlugin } from '../plugins/MarkdownReaderPlugin.js';
-import { PlainTextReaderPlugin } from '../plugins/PlainTextReaderPlugin.js';
-import { ImageUploaderPlugin } from '../plugins/ImageUploaderPlugin.js';
-import { ConfigurationError, APIError } from '../core/errors.js';
-import { logger } from '../core/logger.js';
+import { WeChatPublisher } from '../core/Publisher';
+import type { PublisherConfig, ArticleContent, Plugin } from '../core/types';
+import { MarkdownReaderPlugin } from '../plugins/MarkdownReaderPlugin';
+import { PlainTextReaderPlugin } from '../plugins/PlainTextReaderPlugin';
+import { ImageUploaderPlugin } from '../plugins/ImageUploaderPlugin';
+import { ConfigurationError, APIError } from '../core/errors';
+import { logger } from '../core/logger';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -17,6 +17,18 @@ export class WeChatPublisherSDK {
   private publisher: WeChatPublisher | null = null;
   private _initialized = false;
   private _initializationPromise: Promise<void> | null = null;
+  
+  /**
+   * 获取发布器状态
+   */
+  getStatus() {
+    return {
+      isDebug: this.config.debug || false,
+      isInitialized: this._initialized,
+      appId: this.config.appId ? `${this.config.appId.substring(0, 4)}...${this.config.appId.slice(-4)}` : undefined
+    };
+  }
+
   private config: PublisherConfig & { plugins?: any[] } = {
     appId: '',
     appSecret: '',
@@ -91,25 +103,25 @@ export class WeChatPublisherSDK {
         }
 
         // 先初始化基础插件
-        logger.debug('初始化基础插件...');
+        logger.debug('初始化基础插件...', '');
 
         // 创建默认插件集合
         const defaultPlugins = [
-          new MarkdownReaderPlugin(),
+          new MarkdownReaderPlugin(null as any), // 临时使用 null 作为 publisher，稍后会在 WeChatPublisher.init 中设置
           new PlainTextReaderPlugin()
         ];
 
         // 获取自定义插件，过滤掉已存在的插件
-        const customPlugins = (this.config.plugins || []).filter(plugin =>
+        const customPlugins = (this.config.plugins || []).filter((plugin: Plugin) =>
           !defaultPlugins.some(p => p.name === plugin.name)
         );
 
         // 合并插件
         const basePlugins = [...defaultPlugins, ...customPlugins];
-        logger.debug(`加载了 ${basePlugins.length} 个基础插件: ${basePlugins.map(p => p.name).join(', ')}`);
+        logger.debug(`加载了 ${basePlugins.length} 个基础插件: ${basePlugins.map(p => p.name).join(', ')}`, '');
 
         // 初始化发布器
-        logger.debug('开始初始化 WeChatPublisher...');
+        logger.debug('开始初始化 WeChatPublisher...', '');
         try {
           this.publisher = await WeChatPublisher.init({
             appId: this.config.appId!,
@@ -118,10 +130,10 @@ export class WeChatPublisherSDK {
             publishToDraft: this.config.publishToDraft,
             plugins: basePlugins
           });
-          logger.debug('WeChatPublisher 初始化成功');
+          logger.debug('WeChatPublisher 初始化成功', '');
         } catch (error: unknown) {
           const err = error instanceof Error ? error : new Error(String(error));
-          logger.error('WeChatPublisher 初始化失败:', err);
+          logger.error('WeChatPublisher 初始化失败:', err, '');
           throw new Error(`Publisher初始化失败: ${err.message}`);
         }
 
@@ -139,21 +151,21 @@ export class WeChatPublisherSDK {
           logger.debug('插件配置更新完成');
         } catch (error: unknown) {
           const err = error instanceof Error ? error : new Error(String(error));
-          logger.error('初始化 ImageUploaderPlugin 失败:', err);
+          logger.error('初始化 ImageUploaderPlugin 失败:', err, '');
           // 继续执行，因为这不是致命错误
         }
 
         // 确保发布器已初始化
         if (!this.publisher) {
           const error = new Error('发布器实例不存在');
-          logger.error('发布器初始化失败:', error);
+          logger.error('SDK 初始化失败:', error, '');
           throw error;
         }
         this._initialized = true;
-        logger.debug('SDK 初始化完成');
+        logger.debug('SDK 初始化完成', '');
       } catch (error) {
         const err = error as Error;
-        logger.error(`SDK 初始化失败: ${err.message}`);
+        logger.error(`SDK 初始化失败: ${err.message}`, new Error(err.message), '');
         this._initialized = false;
         this._initializationPromise = null;
         throw new ConfigurationError(`SDK 初始化失败: ${err.message}`, { cause: error });
@@ -240,8 +252,19 @@ export class WeChatPublisherSDK {
       let mediaId: string | undefined;
       if (options.coverImage) {
         try {
-          mediaId = await this.uploadImage(options.coverImage);
+          if (!this.publisher) {
+            throw new Error('发布器未初始化');
+          }
+          const result = await this.publisher.uploadPermanentMaterial(
+            options.coverImage,
+            'image',
+            'cover'  // 上传到封面分组
+          );
+          mediaId = result.media_id;
           logger.info(`封面图片上传成功，mediaId: ${mediaId}`);
+          if (result.url) {
+            logger.info(`封面图片URL: ${result.url}`);
+          }
         } catch (error) {
           logger.warn(`封面图片上传失败: ${(error as Error).message}`);
           // 如果封面图片上传失败，继续发布文章，但使用默认封面

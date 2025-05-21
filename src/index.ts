@@ -59,7 +59,7 @@ async function main() {
         await handlePublish(sdk, argv.file as string);
         break;
       case 'version':
-        console.log(`WeChat Publisher v${require('../package.json').version}`);
+        logger.info(`WeChat Publisher v${require('../package.json').version}`);
         break;
       case 'help':
         cli.showHelp();
@@ -102,19 +102,18 @@ async function handlePublish(sdk: WeChatPublisherSDK, filePath: string) {
       draft: true,
       coverImage: coverImagePath
     });
-    logger.info('发布成功', {
-      title: result.title,
-      mediaId: result.mediaId
-    });
+    const status = sdk.getStatus();
+    const logMessage = [
+      '✅ 发布成功！',
+      `📝 文章标题: ${result.title}`,
+      `🆔 草稿ID: ${result.mediaId || '无'}`,
+      `📋 内容预览: ${result.content.substring(0, 100)}...`,
+      ...(result.mediaId ? [
+        `🔗 草稿链接: https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${status.isDebug ? 'DEBUG_TOKEN' : 'VALID_TOKEN'}&lang=zh_CN#${result.mediaId}`
+      ] : [])
+    ].join('\n');
     
-    console.log('✅ 发布成功！');
-    console.log('📝 文章标题:', result.title);
-    console.log('🆔 草稿ID:', result.mediaId || '无');
-    console.log('📋 内容预览:', result.content.substring(0, 100) + '...');
-    
-    if (result.mediaId) {
-      console.log('🔗 草稿链接:', `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${sdk.getStatus().isDebug ? 'DEBUG_TOKEN' : 'VALID_TOKEN'}&lang=zh_CN#${result.mediaId}`);
-    }
+    logger.info(logMessage);
   } catch (error: unknown) {
     logger.error('发布失败:', error instanceof Error ? error : new Error(String(error)));
     throw error instanceof Error ? error : new Error(String(error));
@@ -122,4 +121,8 @@ async function handlePublish(sdk: WeChatPublisherSDK, filePath: string) {
 }
 
 // 执行主函数
-main().catch(console.error);
+main().catch(error => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  logger.error(`程序执行出错: ${errorMessage}`);
+  process.exit(1);
+});

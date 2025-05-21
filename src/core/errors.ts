@@ -1,4 +1,4 @@
-import { logger } from "./logger.js";
+import { logger } from "./logger";
 
 export class PublisherError extends Error {
   code: ErrorCode;

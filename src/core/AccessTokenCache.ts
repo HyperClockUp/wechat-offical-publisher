@@ -1,16 +1,11 @@
 import * as fs from 'node:fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import axios from 'axios';
-import { APIError } from './errors.js';
-
-// 获取当前模块的目录
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { APIError } from './errors';
 
 // 缓存文件路径
-const cachePath = join(__dirname, '..', '..', '.cache');
+const cachePath = join(process.cwd(), '.cache');
 const cacheFile = join(cachePath, 'access_token.json');
 
 /**

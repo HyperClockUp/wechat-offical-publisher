@@ -1,24 +1,19 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { join, dirname, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, basename } from 'node:path';
 import { Readable } from 'node:stream';
 import { promises as fsp } from 'node:fs';
 import axios, { AxiosInstance } from 'axios';
 import FormData from 'form-data';
-import { APIError, PluginError, ConfigurationError } from './errors.js';
-import type { Plugin, PluginContext, ArticleContent, PublisherConfig } from './types.js';
-import { AccessTokenCache } from './AccessTokenCache.js';
-import { logger } from './logger.js';
+import { APIError, PluginError, ConfigurationError } from './errors';
+import type { Plugin, PluginContext, ArticleContent, PublisherConfig } from './types';
+import { AccessTokenCache } from './AccessTokenCache';
+import { logger } from './logger';
 
 const WECHAT_API_BASE_URL = 'https://api.weixin.qq.com/cgi-bin';
 
-// 获取当前模块的目录 (ESM 方式)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 // 缓存文件路径
-const cachePath = join(__dirname, '..', '..', '.cache');
+const cachePath = join(process.cwd(), '.cache');
 const cacheFile = join(cachePath, 'access_token.json');
 
 // 初始化函数
@@ -39,7 +34,7 @@ const initialize = async () => {
 
 // 执行初始化
 initialize().catch(err => {
-  console.error('初始化失败:', err);
+  logger.error('初始化失败:', err);
   process.exit(1);
 });
 
@@ -314,14 +309,14 @@ export class WeChatPublisher {
       // 执行插件链
       for (const plugin of this.config.plugins) {
         if (this.config.debug) {
-          console.log(`[DEBUG] Executing plugin: ${plugin.name}`);
+          logger.info(`Executing plugin: ${plugin.name}`);
         }
         try {
           await plugin.execute(ctx);
         } catch (error) {
           // 插件执行失败，记录错误并立即停止执行
           const errorMessage = `插件 ${plugin.name} 执行失败: ${error instanceof Error ? error.message : String(error)}`;
-          console.error(`[ERROR] ${errorMessage}`);
+          logger.error(`[ERROR] ${errorMessage}`);
           throw new Error(errorMessage);
         }
       }
@@ -337,7 +332,7 @@ export class WeChatPublisher {
       return await this.publishToWeChat(ctx.article);
     } catch (error) {
       const errorMessage = `发布失败: ${error instanceof Error ? error.message : String(error)}`;
-      console.error(`[ERROR] ${errorMessage}`);
+      logger.error(`[ERROR] ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }
@@ -371,9 +366,10 @@ export class WeChatPublisher {
    */
   async uploadPermanentMaterial(
     imagePath: string, 
-    type: 'image' | 'voice' | 'video' | 'thumb' = 'image'
+    type: 'image' | 'voice' | 'video' | 'thumb' = 'image',
+    groupName?: string
   ): Promise<{ media_id: string; url?: string }> {
-    return this.uploadMaterial(imagePath, 'permanent', type);
+    return this.uploadMaterial(imagePath, 'permanent', type, groupName);
   }
 
   /**
@@ -386,10 +382,11 @@ export class WeChatPublisher {
   private async uploadMaterial(
     imagePath: string, 
     materialType: 'temporary' | 'permanent',
-    fileType: 'image' | 'voice' | 'video' | 'thumb' = 'image'
+    fileType: 'image' | 'voice' | 'video' | 'thumb' = 'image',
+    groupName?: string
   ): Promise<{ media_id: string; url?: string }> {
     const isTemporary = materialType === 'temporary';
-    console.log(`[DEBUG] 开始上传${isTemporary ? '临时' : '永久'}素材: ${imagePath}, 类型: ${fileType}`);
+    logger.info(`开始上传${isTemporary ? '临时' : '永久'}素材: ${imagePath}, 类型: ${fileType}`);
 
     try {
       await this.ensureAccessToken();
@@ -445,12 +442,17 @@ export class WeChatPublisher {
         type: fileType
       });
 
+      // 添加分组信息
+      if (!isTemporary && groupName) {
+        params.append('group_name', groupName);
+      }
+
       // 确保 baseURL 和 endpoint 之间的斜杠正确
       const baseUrl = WECHAT_API_BASE_URL.endsWith('/') 
         ? WECHAT_API_BASE_URL 
         : `${WECHAT_API_BASE_URL}/`;
       const fullUrl = `${baseUrl}${endpoint}?${params.toString()}`;
-      console.log(`[DEBUG] 上传URL: ${fullUrl}`);
+      logger.info(`上传URL: ${fullUrl}`);
 
       // 发送请求
       const { data } = await axios.post<{
@@ -472,7 +474,7 @@ export class WeChatPublisher {
         }
       );
 
-      console.log('[DEBUG] 上传响应:', JSON.stringify(data, null, 2));
+      logger.info(`上传响应: ${JSON.stringify(data, null, 2)}`);
 
       if (data.errcode) {
         throw new Error(`上传${isTemporary ? '临时' : '永久'}素材失败[${data.errcode}]: ${data.errmsg || '未知错误'}`);
@@ -482,13 +484,13 @@ export class WeChatPublisher {
         throw new Error(`上传${isTemporary ? '临时' : '永久'}素材失败: 未返回media_id`);
       }
 
-      console.log(`[DEBUG] ${isTemporary ? '临时' : '永久'}素材上传成功，media_id: ${data.media_id}`);
+      logger.info(`${isTemporary ? '临时' : '永久'}素材上传成功，media_id: ${data.media_id}`);
       return {
         media_id: data.media_id,
         url: data.url
       };
     } catch (error) {
-      console.error(`上传${isTemporary ? '临时' : '永久'}素材失败:`, error);
+      logger.error(`上传${isTemporary ? '临时' : '永久'}素材失败: ${error instanceof Error ? error.message : String(error)}`);
       throw new Error(`上传${isTemporary ? '临时' : '永久'}素材失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -500,7 +502,7 @@ export class WeChatPublisher {
    * @returns 包含 media_id 和可选的 url 的对象
    */
   async uploadImage(imagePath: string): Promise<{ media_id: string; url?: string }> {
-    console.warn('uploadImage方法已弃用，请使用uploadPermanentMaterial或uploadTemporaryMaterial方法');
+    logger.warn('uploadImage方法已弃用，请使用uploadPermanentMaterial或uploadTemporaryMaterial方法');
     return this.uploadPermanentMaterial(imagePath, 'image');
   }
 
@@ -512,11 +514,12 @@ export class WeChatPublisher {
   private async publishToWeChat(article: ArticleContent): Promise<{ msg: string; article: ArticleContent }> {
     // 模拟模式，不实际发布到微信
     if (this.config.debug) {
-      console.log('[DEBUG] 模拟模式：跳过实际发布到微信');
-      console.log('文章标题:', article.title);
-      console.log('文章内容预览:', article.content.substring(0, 100) + '...');
+      logger.info('模拟模式：跳过实际发布到微信');
+      logger.info(`文章标题: ${article.title}`);
+      logger.info(`文章内容预览: ${article.content.substring(0, 100)}...`);
+      
       if (this.config.publishToDraft) {
-        console.log('[DEBUG] 模拟模式：文章将发布到草稿箱');
+        logger.info('模拟模式：文章将发布到草稿箱');
         return {
           msg: '模拟发布到草稿箱成功',
           article: {
@@ -525,7 +528,7 @@ export class WeChatPublisher {
           }
         };
       } else {
-        console.log('[DEBUG] 模拟模式：文章将直接发布');
+        logger.info('模拟模式：文章将直接发布');
         return {
           msg: '模拟直接发布成功',
           article: {
@@ -542,24 +545,25 @@ export class WeChatPublisher {
 
       // 根据配置选择发布接口
       const endpoint = this.config.publishToDraft ? '/draft/add' : '/freepublish/submit';
-      console.log(`正在${this.config.publishToDraft ? '发布到草稿箱' : '直接发布'}...`);
+      logger.info(`正在${this.config.publishToDraft ? '发布到草稿箱' : '直接发布'}...`);
 
       // 处理封面图片
       const thumbMediaId = article.thumbMediaId;
-      const showCoverPic = article.showCoverPic !== false && thumbMediaId ? 1 : 0; // 默认显示封面，除非显式设置为false
+      // 默认显示封面图片，除非显式设置为 false
+      const showCoverPic = !!article.showCoverPic ? 0 : 1;
 
-      console.log('[DEBUG] 开始处理封面图片...');
-      console.log(`[DEBUG] 封面图片 media_id: ${thumbMediaId || '未设置'}`);
-      console.log(`[DEBUG] 显示封面图片: ${showCoverPic === 1 ? '是' : '否'}`);
-
+      logger.info('开始处理封面图片...');
+      logger.info(`封面图片 media_id: ${thumbMediaId || '未设置'}`);
+      
       if (thumbMediaId) {
-        console.log(`[DEBUG] 使用已上传的封面图片，media_id: ${thumbMediaId}`);
+        logger.info(`使用已上传的封面图片，media_id: ${thumbMediaId}`);
+        logger.info(`显示封面图片: ${showCoverPic === 1 ? '是' : '否'}`);
       } else {
-        console.log('[DEBUG] 未提供封面图片 media_id');
+        logger.info('未提供封面图片 media_id，将不显示封面');
       }
 
       // 准备文章数据
-      console.log('[DEBUG] 准备文章数据...');
+      logger.info('准备文章数据...');
 
       // 构建文章数据对象
       const articleData: any = {
@@ -567,7 +571,7 @@ export class WeChatPublisher {
         content: article.content,
         digest: article.digest || '',
         author: article.author || '',
-        show_cover_pic: showCoverPic ? 1 : 0,
+        show_cover_pic: showCoverPic,
         content_source_url: article.sourceUrl || '',
         need_open_comment: article.needOpenComment ? 1 : 0,
         only_fans_can_comment: article.onlyFansCanComment ? 1 : 0
@@ -575,30 +579,30 @@ export class WeChatPublisher {
 
       // 只要有 thumbMediaId 就设置，不管 showCoverPic 的值
       if (thumbMediaId) {
-        console.log(`[DEBUG] 设置 thumb_media_id: ${thumbMediaId}`);
+        logger.info(`设置 thumb_media_id: ${thumbMediaId}`);
         articleData.thumb_media_id = thumbMediaId;
       } else {
-        console.log('[DEBUG] 未设置 thumb_media_id');
+        logger.info('未设置 thumb_media_id');
         // 确保不包含 thumb_media_id 字段
         delete articleData.thumb_media_id;
       }
 
       // 打印详细的调试信息
-      console.log('[DEBUG] 文章数据准备完成:', {
+      logger.info(`文章数据准备完成: ${JSON.stringify({
         title: articleData.title,
         has_thumb_media: !!articleData.thumb_media_id,
         thumb_media_id: articleData.thumb_media_id ? articleData.thumb_media_id : '未设置',
         show_cover_pic: articleData.show_cover_pic,
         content_length: articleData.content?.length || 0,
         digest_length: articleData.digest?.length || 0
-      });
+      }, null, 2)}`);
 
       // 完整的文章数据（隐藏敏感信息）
       const safeArticleData = { ...articleData };
       if (safeArticleData.content) {
         safeArticleData.content = `${safeArticleData.content.substring(0, 100)}...`;
       }
-      console.log('[DEBUG] 完整文章数据:', safeArticleData);
+      logger.info(`完整文章数据: ${JSON.stringify(safeArticleData, null, 2)}`);
 
       // 发送请求
       const { data } = await this.http.post<{
@@ -613,26 +617,26 @@ export class WeChatPublisher {
       });
 
       // 打印响应数据
-      console.log('[DEBUG] 发布响应数据:', {
+      logger.info(`发布响应数据: ${JSON.stringify({
         errcode: data.errcode,
         errmsg: data.errmsg,
         media_id: data.media_id,
         url: data.url
-      });
+      }, null, 2)}`);
 
       // 检查错误码
       if (data.errcode && data.errcode !== 0) {
         // 处理封面图片相关的错误
         if (data.errmsg && (data.errmsg.includes('invalid media_id') || data.errmsg.includes('thumb_media'))) {
-          console.log(`[INFO] 封面图片相关错误: ${data.errmsg}`);
+          logger.info(`封面图片相关错误: ${data.errmsg}`);
 
           // 如果已经尝试过不设置封面图片，直接抛出错误
           if (article.thumbMediaId === '') {
             throw new Error(`微信API错误: 无法发布文章，请检查文章内容是否符合要求`);
           }
 
-          // 重新发送请求，不包含封面图片
-          console.log('[INFO] 尝试不设置封面图片重新发布...');
+          // 尝试不设置封面图片重新发布
+          logger.info('尝试不设置封面图片重新发布...');
           const noCoverArticle = {
             ...article,
             coverImage: '',
@@ -664,7 +668,7 @@ export class WeChatPublisher {
       const errorMessage = this.config.publishToDraft
         ? '发布到微信草稿箱失败'
         : '发布到微信失败';
-      console.error(`${errorMessage}:`, error);
+      logger.error(`${errorMessage}: ${error instanceof Error ? error.message : String(error)}`);
       throw new Error(`${errorMessage}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

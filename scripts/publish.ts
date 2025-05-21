@@ -2,12 +2,25 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import chalk from 'chalk';
+import * as dotenv from 'dotenv';
+
+// 加载环境变量
+dotenv.config();
+
+// 打印环境变量用于调试
+console.log('Environment Variables:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('LOG_LEVEL:', process.env.LOG_LEVEL);
+console.log('WECHAT_APP_ID:', process.env.WECHAT_APP_ID ? '***' : '未设置');
+console.log('WECHAT_APP_SECRET:', process.env.WECHAT_APP_SECRET ? '***' : '未设置');
+
 import { WeChatPublisherSDK } from '../src/sdk';
 import { MarkdownReaderPlugin } from '../src/plugins/MarkdownReaderPlugin';
 import { PlainTextReaderPlugin } from '../src/plugins/PlainTextReaderPlugin';
 import { ImageUploaderPlugin } from '../src/plugins/ImageUploaderPlugin';
 import { loadConfig } from '../src/config/config';
 import { ConfigurationError, APIError } from '../src/core/errors';
+import { logger } from '../src/core/logger';
 
 /**
  * 处理并显示错误信息
@@ -17,13 +30,13 @@ import { ConfigurationError, APIError } from '../src/core/errors';
  */
 function handleError(error: unknown, exitOnError: boolean = true): boolean {
   if (error instanceof ConfigurationError) {
-    console.error(chalk.red('配置错误:'), error.message);
+    logger.error(new Error(`配置错误: ${error.message}`));
   } else if (error instanceof APIError) {
-    console.error(chalk.red('API错误:'), error.message);
+    logger.error(new Error(`API错误: ${error.message}`));
   } else if (error instanceof Error) {
-    console.error(chalk.red('发布失败:'), error.message);
+    logger.error(new Error(`发布失败: ${error.message}`));
   } else {
-    console.error(chalk.red('发布失败:'), String(error));
+    logger.error(new Error(`发布失败: ${String(error)}`));
   }
 
   if (exitOnError) {
@@ -125,26 +138,26 @@ async function publishArticle(articlePath: string, options: PublishOptions): Pro
     });
 
     // 创建SDK实例
-    console.log('创建SDK实例...');
+    logger.info('创建SDK实例...');
     const sdk = new WeChatPublisherSDK({
       appId: process.env.WECHAT_APP_ID,
       appSecret: process.env.WECHAT_APP_SECRET,
       debug: config.debug,
       publishToDraft: draft,
       plugins: [
-        new MarkdownReaderPlugin(),
+        new MarkdownReaderPlugin(null as any), // 临时使用 null 作为 publisher，稍后会在 SDK 初始化时设置
         new PlainTextReaderPlugin()
       ]
     });
 
-    console.log('等待SDK初始化...');
+    logger.info('等待SDK初始化...');
     try {
       await sdk.initialize();
-      console.log('SDK初始化成功');
+      logger.info('SDK初始化成功');
       
       // 添加需要发布器实例的插件
       if (sdk['publisher']) {
-        console.log('添加ImageUploaderPlugin...');
+        logger.info('添加ImageUploaderPlugin...');
         const publisher = sdk['publisher'];
         const config = publisher.getConfig();
         if (!config.plugins) {
@@ -158,7 +171,7 @@ async function publishArticle(articlePath: string, options: PublishOptions): Pro
           config.plugins.push(new ImageUploaderPlugin(publisher));
           console.log('ImageUploaderPlugin添加成功');
         } else {
-          console.log('ImageUploaderPlugin已存在，跳过添加');
+          logger.info('ImageUploaderPlugin已存在，跳过添加');
         }
       } else {
         console.warn('发布器实例不存在，无法添加ImageUploaderPlugin');
@@ -182,9 +195,9 @@ async function publishArticle(articlePath: string, options: PublishOptions): Pro
       coverImage: finalCoverImagePath
     };
 
-    console.log(finalCoverImagePath)
+    logger.info(finalCoverImagePath)
     
-    console.log('发布文章选项:', {
+    logger.info('发布文章选项:', {
       title: articleOptions.title,
       author: articleOptions.author,
       digest: articleOptions.digest ? `${articleOptions.digest.substring(0, 30)}...` : '未设置',
@@ -192,7 +205,7 @@ async function publishArticle(articlePath: string, options: PublishOptions): Pro
       coverImage: finalCoverImagePath ? `已设置 (${path.basename(finalCoverImagePath)})` : '未设置'
     });
 
-    console.log('发布参数:', {
+    logger.debug('发布参数:', {
       ...publishOptions,
       coverImage: publishOptions.coverImage ? '已设置' : '未设置'
     });
@@ -206,35 +219,35 @@ async function publishArticle(articlePath: string, options: PublishOptions): Pro
       const publishMode = draft ? '草稿' : '正式';
 
       // 显示结果
-      console.log(chalk.green(`✅ 发布${publishMode}文章成功！`));
+      logger.info(`✅ 发布${publishMode}文章成功！`);
       
       // 确保 result 有 title 属性
       const articleTitle = result.title || '未命名文章';
-      console.log(chalk.blue('📝 文章标题:'), articleTitle);
+      logger.info(`📝 文章标题: ${articleTitle}`);
       
       // 如果是草稿箱发布，显示草稿链接
       if (draft && 'mediaId' in result && result.mediaId) {
-        console.log(chalk.blue('🆔 草稿ID:'), result.mediaId);
-        console.log(chalk.blue('🔗 草稿链接:'), `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${token}&lang=zh_CN#${result.mediaId}`);
+        logger.info(`🆔 草稿ID: ${result.mediaId}`);
+        logger.info(`🔗 草稿链接: https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${token}&lang=zh_CN#${result.mediaId}`);
       }
 
       // 显示内容预览
       if ('content' in result) {
-        console.log(chalk.blue('📋 内容预览:'), result.content.substring(0, 100) + '...');
+        logger.info(`📋 内容预览: ${result.content.substring(0, 100)}...`);
       }
 
       // 如果是调试模式，显示调试信息
       if (config.debug) {
-        console.log(chalk.yellow('调试信息:'));
-        console.log(chalk.yellow('  - 发布模式:'), publishMode);
+        logger.info('调试信息:');
+        logger.info(`  - 发布模式: ${publishMode}`);
         if (config.appId) {
-          console.log(chalk.yellow('  - AppID:'), config.appId.substring(0, 8) + '...');
+          logger.info(`  - AppID: ${config.appId.substring(0, 8)}...`);
         }
       }
       
       return { success: true, result };
     } catch (error) {
-      console.error(chalk.red('处理发布结果时出错:'));
+      logger.error(new Error('处理发布结果时出错'));
       const errorObj = error instanceof Error ? error : new Error(String(error));
       handleError(errorObj, false);
       return { success: false, error: errorObj };
@@ -254,7 +267,7 @@ async function publishArticle(articlePath: string, options: PublishOptions): Pro
  * 主函数
  */
 async function main() {
-  console.log('Starting publish script...');
+  logger.info('Starting publish script...');
   try {
     // 解析命令行参数
     const args = process.argv.slice(2);
@@ -263,10 +276,10 @@ async function main() {
 
     // 检查文件路径
     if (!articlePath) {
-      console.error(chalk.red('请指定要发布的文章文件路径'));
-      console.log(chalk.blue('\n使用方法:'), 'pnpm publish:wechat <markdown文件路径> [--publishToDraft=false]');
-      console.log(chalk.blue('\n选项:'));
-      console.log('  --publishToDraft=false  直接发布文章（默认为true，发布到草稿箱）');
+      logger.error(new Error('请指定要发布的文章文件路径'));
+      logger.info('\n使用方法: pnpm publish:wechat <markdown文件路径> [--publishToDraft=false]');
+      logger.info('\n选项:');
+      logger.info('  --publishToDraft=false  直接发布文章（默认为true，发布到草稿箱）');
       process.exit(1);
     }
 
@@ -274,7 +287,7 @@ async function main() {
     try {
       await fs.promises.access(articlePath);
     } catch (error) {
-      console.error(chalk.red('错误:'), `文件不存在或无法访问: ${articlePath}`);
+      logger.error(new Error(`文件不存在或无法访问: ${articlePath}`));
       process.exit(1);
     }
 
@@ -291,9 +304,13 @@ async function main() {
       publishToDraft: draft // 为了向后兼容
     };
     
-    console.log('文章选项:', {
-      ...articleOptions,
-      coverImage: '将在发布时解析'
+    logger.info('文章选项:', {
+      title: articleOptions.title,
+      author: articleOptions.author,
+      digest: articleOptions.digest,
+      draft: articleOptions.draft,
+      coverImage: articleOptions.coverImage || '将在发布时解析',
+      publishToDraft: articleOptions.publishToDraft
     });
 
     // 发布文章
@@ -305,25 +322,21 @@ async function main() {
   }
 }
 
-
-
 // Export the publishArticle function
 export { publishArticle };
 
 // Only run main if this file is being run directly
-const isRunDirectly = process.argv[1] && process.argv[1].endsWith('publish.ts') || 
-                     (process.argv[1] && process.argv[1].includes('publish.js'));
+const isRunDirectly = require.main === module;
 
-console.log('Checking if script is run directly...');
-console.log('isRunDirectly:', isRunDirectly);
+logger.debug('Checking if script is run directly...');
+logger.debug(`isRunDirectly: ${isRunDirectly}`);
 
 if (isRunDirectly) {
-  console.log('Running main function...');
-  main().catch((error) => {
-    console.error('Error in main function:', error);
-    const errorObj = error instanceof Error ? error : new Error(String(error));
-    handleError(errorObj, true);
+  logger.debug('Running main function...');
+  main().catch(error => {
+    logger.error('Error in main function:', error);
+    process.exit(1);
   });
 } else {
-  console.log('Script is being imported, not running main function');
+  logger.debug('Script is being imported, not running main function');
 }

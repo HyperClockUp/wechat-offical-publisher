@@ -18,6 +18,7 @@ export interface ArticleContent {
   coverImage?: string;
   /** 封面图片URL */
   coverUrl?: string;
+  coverGroup?: string; // 封面图片所在的分组
 }
 
 /**

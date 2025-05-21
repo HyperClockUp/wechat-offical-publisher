@@ -1,7 +1,6 @@
 {
   "name": "wechat-publisher",
   "version": "1.0.0",
-  "type": "module",
   "description": "微信文章自动发布工具",
   "main": "dist/index.js",
   "bin": {
@@ -27,28 +26,28 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^1.6.5",
+    "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "dotenv": "^16.3.1",
+    "form-data": "^4.0.0",
     "marked": "^5.0.2",
-    "yargs": "^17.7.2",
-    "chalk": "^4.1.2",
-    "form-data": "^4.0.0"
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@types/commander": "^2.12.2",
-    "@types/node": "^18.19.47",
-    "@types/marked": "^5.0.2",
-    "@types/yargs": "^17.0.28",
     "@types/jest": "^29.5.11",
+    "@types/marked": "^5.0.2",
+    "@types/node": "^18.19.47",
+    "@types/yargs": "^17.0.28",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "tsx": "^4.8.0",
-    "typescript": "^5.3.3",
     "eslint": "^8.56.0",
-    "prettier": "^3.2.4",
     "jest": "^29.7.0",
     "open": "^8.4.2",
-    "ts-node": "^10.9.2"
+    "prettier": "^3.2.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.8.0",
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=16.0.0"
