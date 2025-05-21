@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { Plugin, PluginContext } from '../core/types';
+import { PluginError } from '../core/errors';
 
 /**
  * 纯文本文件读取插件
@@ -9,40 +10,34 @@ export class PlainTextReaderPlugin implements Plugin {
 
   async execute(ctx: PluginContext): Promise<PluginContext> {
     // 如果已经有文章内容或不是文本文件，直接返回
-    if (ctx.article) {
-      return ctx;
-    }
-
-    // 支持的文本文件扩展名
-    const textExtensions = ['.txt', '.text', '.md', '.markdown'];
-    const isTextFile = textExtensions.some(ext => ctx.input.endsWith(ext));
-    
-    if (!isTextFile) {
-      return ctx;
-    }
-
     try {
+      // 如果已经有文章内容或不是文本文件，直接返回
+      if (ctx.article) {
+        return ctx;
+      }
+
+      // 支持的文本文件扩展名
+      const textExtensions = ['.txt', '.text', '.md', '.markdown'];
+      const isTextFile = textExtensions.some(ext => ctx.input.endsWith(ext));
+      
+      if (!isTextFile) {
+        return ctx;
+      }
+
       // 读取文件内容
       const content = await readFile(ctx.input, 'utf-8');
       
       // 提取标题（第一行作为标题）
       const lines = content.split('\n');
-      let title = '无标题';
-      let textContent = content;
       
-      if (lines.length > 0) {
-        title = lines[0].trim();
-        // 如果第一行是标题，则从内容中移除
-        if (title === lines[0]) {
-          textContent = lines.slice(1).join('\n');
-        }
-      }
+      // 提取标题
+      const title = lines[0].trim();
+      
+      // 移除标题行，将剩余内容转换为段落
+      const textContent = lines.slice(1).join('\n');
       
       // 将纯文本转换为HTML
-      const htmlContent = textContent
-        .split('\n')
-        .map(paragraph => `<p>${paragraph}</p>`)
-        .join('\n');
+      const htmlContent = `<p>${textContent}</p>`;
       
       // 更新上下文
       ctx.article = {
@@ -50,12 +45,16 @@ export class PlainTextReaderPlugin implements Plugin {
         content: htmlContent,
         showCoverPic: true,
         needOpenComment: true,
+        mediaId: '',
+        thumbMediaId: '',
+        msg: ''
       };
       
       return ctx;
     } catch (error) {
-      console.error(`[${this.name}] 读取文本文件失败:`, error);
-      throw error;
+      throw new PluginError('处理纯文本文件失败', {
+        message: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 }

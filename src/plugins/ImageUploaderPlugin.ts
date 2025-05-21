@@ -1,13 +1,16 @@
-import { Plugin, PluginContext, ArticleContent } from '../core/types';
+import { Plugin, PluginContext, ArticleContent } from '../core/types.js';
 import axios from 'axios';
-import { WeChatPublisher } from '../core/Publisher';
-import * as fs from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { WeChatPublisher } from '../core/Publisher.js';
+import * as fs from 'fs';
+import { join, dirname, basename } from 'path';
+import { fileURLToPath } from 'url';
 import FormData from 'form-data';
-import { Buffer } from 'node:buffer';
+import { Buffer } from 'buffer';
+import { PluginError } from '../core/errors.js';
 
-const __dirname = fileURLToPath(import.meta.url);
+// Use ESM __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * 图片上传插件
@@ -19,75 +22,58 @@ export class ImageUploaderPlugin implements Plugin {
 
   async execute(ctx: PluginContext): Promise<PluginContext> {
     try {
-      if (!ctx.article?.thumbMediaId) {
-        // 如果没有封面图片，使用本地默认图片
-        const defaultImageUrl = 'file://' + join(__dirname, '../../', 'assets', 'default_cover.png');
-        const mediaId = await this.uploadImage(defaultImageUrl);
-        // 确保 article 存在
-        if (!ctx.article) {
-          throw new Error('文章内容不存在');
-        }
+      // 确保 article 存在
+      if (!ctx.article) {
         ctx.article = {
-          ...ctx.article,
-          thumbMediaId: mediaId
+          title: '',
+          content: '',
+          showCoverPic: false,
+          needOpenComment: true,
+          mediaId: '',
+          thumbMediaId: '',
+          msg: ''
         };
       }
-      console.log({
-        ctx
-      });
+
+      // 检查是否有封面图片需要上传
+      if (ctx.article.coverImage && fs.existsSync(ctx.article.coverImage)) {
+        console.log(`[INFO] 上传封面图片: ${ctx.article.coverImage}`);
+        
+        // 确保访问令牌有效
+        await this.publisher['ensureAccessToken']();
+        const accessToken = this.publisher.getAccessToken();
+        
+        // 准备上传图片
+        const form = new FormData();
+        form.append('media', fs.createReadStream(ctx.article.coverImage), {
+          filename: basename(ctx.article.coverImage),
+          contentType: 'image/jpeg'
+        });
+        
+        // 使用 publisher 上传永久素材
+        const mediaInfo = await this.publisher.uploadPermanentMaterial(
+          ctx.article.coverImage,
+          'image'  // 指定素材类型为图片
+        );
+        
+        // 设置封面图片的 media_id 和 URL
+        ctx.article.thumbMediaId = mediaInfo.media_id;
+        ctx.article.coverUrl = mediaInfo.url || '';
+        ctx.article.showCoverPic = true;
+        
+        console.log(`[INFO] 封面图片上传成功，media_id: ${mediaInfo.media_id}`);
+      } else if (ctx.article.coverImage) {
+        console.warn(`[WARN] 封面图片不存在: ${ctx.article.coverImage}`);
+      } else {
+        console.log('[INFO] 未提供封面图片，将不设置封面');
+        ctx.article.showCoverPic = false;
+      }
+      
       return ctx;
     } catch (error) {
-      console.error(`[${this.name}] 上传图片失败:`, error);
-      throw error;
-    }
-  }
-
-  private async uploadImage(imageUrl: string): Promise<string> {
-    try {
-      // 获取访问令牌
-      await this.publisher.ensureAccessToken();
-
-      // 读取图片数据
-      let imageData: Buffer;
-      if (imageUrl.startsWith('file://')) {
-        // 本地文件
-        const filePath = imageUrl.replace('file://', '');
-        imageData = await fs.promises.readFile(filePath);
-      } else {
-        // 远程图片
-        const response = await axios.get(imageUrl, {
-          responseType: 'arraybuffer'
-        });
-        imageData = response.data;
-      }
-
-      // 上传到微信
-      const formData = new FormData();
-      formData.append('media', Buffer.from(imageData), {
-        filename: 'image.png',
-        contentType: 'image/png'
+      throw new PluginError('图片上传失败', {
+        message: error instanceof Error ? error.message : String(error)
       });
-
-      const uploadResponse = await axios.post(
-        `https://api.weixin.qq.com/cgi-bin/material/add_material`,
-        formData,
-        {
-          params: {
-            access_token: this.publisher.getAccessToken(),
-            type: 'image'
-          },
-          headers: formData.getHeaders()
-        }
-      );
-
-      if (uploadResponse.data.errcode) {
-        throw new Error(`上传图片失败: ${uploadResponse.data.errmsg}`);
-      }
-
-      return uploadResponse.data.media_id;
-    } catch (error) {
-      console.error(`[${this.name}] 上传图片失败:`, error);
-      throw error;
     }
   }
 }

@@ -163,23 +163,50 @@ export * from './MyPlugin';
 3. 在创建发布器时使用插件：
 
 ```typescript
-const publisher = new WeChatPublisher({
-  // ... 其他配置 ...
+// 使用SDK发布文章
+const sdk = new WeChatPublisherSDK({
+  appId: 'your-app-id',
+  appSecret: 'your-app-secret',
   plugins: [
     new MarkdownReaderPlugin(),
-    new MyPlugin()
+    new ImageUploaderPlugin()
   ]
 });
+
+// 发布单篇文章
+await sdk.publishArticle('文章内容', {
+  title: '文章标题',
+  draft: true, // 是否发布到草稿箱
+  coverImage: '封面图片路径'
+});
+
+// 批量发布文章
+await sdk.publishArticles([
+  {
+    content: '文章1内容',
+    title: '文章1标题',
+    coverImage: '文章1封面'
+  },
+  {
+    content: '文章2内容',
+    title: '文章2标题',
+    coverImage: '文章2封面'
+  }
+]);
 ```
 
 ## ⚙️ 配置项
 
-可以在 `.env` 文件中配置以下选项：
+可以在 `.env` 文件或直接在配置对象中设置以下选项：
 
 | 变量名 | 描述 | 默认值 |
 |--------|------|--------|
-| WECHAT_APP_ID | 微信公众号 AppID | 无 |
-| WECHAT_APP_SECRET | 微信公众号 AppSecret | 无 |
+| WECHAT_APP_ID | 微信公众平台 AppID | - |
+| WECHAT_APP_SECRET | 微信公众平台 AppSecret | - |
+| PUBLISH_TO_DRAFT | 是否发布到草稿箱 | false |
+| DEBUG | 是否启用调试模式 | false |
+| PLUGIN_MARKDOWN | 是否启用Markdown插件 | true |
+| PLUGIN_IMAGE | 是否启用图片上传插件 | true |
 | NODE_ENV | 环境模式 (development/production) | development |
 
 ## 🐛 调试

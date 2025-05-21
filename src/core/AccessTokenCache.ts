@@ -1,52 +1,92 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import * as fs from 'node:fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync, mkdirSync } from 'fs';
+import axios from 'axios';
+import { APIError } from './errors.js';
+
+// 获取当前模块的目录
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 缓存文件路径
+const cachePath = join(__dirname, '..', '..', '.cache');
+const cacheFile = join(cachePath, 'access_token.json');
 
 /**
  * 访问令牌缓存类
  */
 export class AccessTokenCache {
-  private static cachePath: string;
-  private static cacheFile: string;
-
-  static init() {
-    // 获取当前模块的目录
-    const __dirname = fileURLToPath(import.meta.url);
-    // 使用 path 模块处理路径
-    this.cachePath = join(__dirname, '..', '.cache');
-    this.cacheFile = join(this.cachePath, 'access_token.json');
-
-    // 创建缓存目录（如果不存在）
-    if (!existsSync(this.cachePath)) {
-      mkdirSync(this.cachePath, { recursive: true });
-    }
-  }
+  private static cachePath = cachePath;
+  private static cacheFile = cacheFile;
 
   /**
-   * 保存访问令牌到缓存
+   * 初始化缓存
    */
-  static save(token: string, expiresAt: number) {
-    const data = {
-      token,
-      expiresAt
-    };
-    writeFileSync(this.cacheFile, JSON.stringify(data, null, 2));
-  }
-
-  /**
-   * 从缓存读取访问令牌
-   */
-  static load(): { token: string; expiresAt: number } | null {
-    if (!existsSync(this.cacheFile)) {
-      return null;
-    }
-
+  static init(): void {
     try {
-      const data = JSON.parse(readFileSync(this.cacheFile, 'utf-8'));
-      return data;
+      // 确保缓存目录存在
+      if (!existsSync(cachePath)) {
+        mkdirSync(cachePath, { recursive: true });
+      }
+      // 确保缓存文件存在
+      if (!existsSync(cacheFile)) {
+        fs.writeFileSync(cacheFile, JSON.stringify({ token: '', expiresAt: 0 }));
+      }
     } catch (error) {
-      console.error('[AccessTokenCache] 读取缓存失败:', error);
-      return null;
+      throw new APIError('初始化访问令牌缓存失败', {
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * 获取访问令牌
+   */
+  static async getAccessToken(appId: string, appSecret: string): Promise<{ token: string; expiresAt: number }> {
+    try {
+      // 确保缓存目录存在
+      if (!existsSync(cachePath)) {
+        mkdirSync(cachePath, { recursive: true });
+      }
+
+      // 检查缓存文件是否存在
+      if (existsSync(cacheFile)) {
+        const data = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+        if (data.expiresAt > Date.now()) {
+          return data;
+        }
+      }
+
+      // 如果令牌过期或不存在，获取新令牌
+      const response = await axios.get<{ 
+        access_token: string;
+        expires_in: number;
+        errcode?: number;
+        errmsg?: string;
+      }>(`https://api.weixin.qq.com/cgi-bin/token`, {
+        params: {
+          grant_type: 'client_credential',
+          appid: appId,
+          secret: appSecret
+        }
+      });
+
+      if (response.data.errcode) {
+        throw new Error(`获取访问令牌失败: ${response.data.errmsg}`);
+      }
+
+      const tokenData = {
+        token: response.data.access_token,
+        // 提前5分钟过期，避免临界点问题
+        expiresAt: Date.now() + (response.data.expires_in - 300) * 1000
+      };
+
+      // 保存到缓存
+      fs.writeFileSync(cacheFile, JSON.stringify(tokenData));
+      return tokenData;
+    } catch (error) {
+      throw new Error(`获取访问令牌失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -54,8 +94,8 @@ export class AccessTokenCache {
    * 清除缓存
    */
   static clear() {
-    if (existsSync(this.cacheFile)) {
-      writeFileSync(this.cacheFile, '');
+    if (existsSync(cacheFile)) {
+      fs.writeFileSync(cacheFile, JSON.stringify({ token: '', expiresAt: 0 }));
     }
   }
 }

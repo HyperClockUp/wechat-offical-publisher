@@ -4,15 +4,20 @@
 export interface ArticleContent {
   title: string;
   content: string;
-  digest?: string;
-  thumbMediaId?: string;
-  mediaId?: string; // 草稿箱文章的 media_id
-  url?: string;     // 直接发布时的文章链接
+  mediaId: string;
+  thumbMediaId: string;
   author?: string;
+  digest?: string;
   showCoverPic?: boolean;
+  url?: string;
   sourceUrl?: string;
+  msg: string;
   needOpenComment?: boolean;
   onlyFansCanComment?: boolean;
+  /** 封面图片本地路径 */
+  coverImage?: string;
+  /** 封面图片URL */
+  coverUrl?: string;
 }
 
 /**

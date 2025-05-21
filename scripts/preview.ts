@@ -3,6 +3,12 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
+
+// 配置 marked 选项
+marked.setOptions({
+  mangle: false,       // 禁用 mangle 以避免弃用警告
+  headerIds: false     // 禁用 headerIds 以避免弃用警告
+});
 import chalk from 'chalk';
 import open from 'open';
 
