@@ -11,6 +11,9 @@
 ## ✨ 功能特性
 
 - 📝 支持 Markdown 和纯文本格式的文章
+  - 完整的 Markdown 语法支持
+  - 智能处理列表、代码块等格式
+  - 自动优化 HTML 输出格式
 - 🔌 插件化架构，易于扩展
 - ⚡ 自动处理微信访问令牌
 - 🔒 环境变量管理敏感信息
@@ -82,14 +85,39 @@ pnpm preview path/to/your/article.md
 #### 2. 发布到微信公众号
 
 ```bash
-# 发布文章到微信公众号
-pnpm publish:wechat example/demo-article.md
+# 基本用法：发布文章到微信公众号草稿箱
+pnpm publish:wechat example/article.md
 
-# 或者发布其他 Markdown 文件
-pnpm publish:wechat path/to/your/article.md
+# 指定文章标题和作者
+pnpm publish:wechat example/article.md --title="我的文章标题" --author="作者名"
+
+# 指定文章摘要和封面图片
+pnpm publish:wechat example/article.md --digest="这是文章的摘要内容..." --cover="path/to/cover.png"
+
+# 直接发布（非草稿）
+pnpm publish:wechat example/article.md --draft=false
+
+# 组合使用
+pnpm publish:wechat example/article.md \
+  --title="我的文章标题" \
+  --author="作者名" \
+  --digest="这是文章的摘要内容..." \
+  --cover="path/to/cover.png" \
+  --draft=false
 ```
 
 > 注意：发布前请确保已正确配置 `.env` 文件中的 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET`。
+
+### 命令行选项
+
+| 选项 | 描述 | 默认值 |
+|------|------|--------|
+| `--title` | 文章标题 | 默认为文件名 |
+| `--author` | 文章作者 | 空 |
+| `--digest` | 文章摘要 | 空 |
+| `--cover` | 封面图片路径 | 自动检测同目录下的 cover.png |
+| `--draft` | 是否发布到草稿箱 | true |
+| `--help` | 显示帮助信息 | - |
 
 #### 3. 开发模式
 
@@ -219,7 +247,31 @@ export NODE_ENV=development
 
 # 或者直接运行
 export NODE_ENV=development && npm start -- example/article.md
+
+# 查看详细的调试日志
+export DEBUG=wechat-publisher:* && pnpm publish:wechat example/article.md
 ```
+
+### 常见问题
+
+#### 1. Markdown 格式问题
+
+- **列表显示不正常**：确保列表项前有适当的空行
+- **代码块格式错误**：使用三个反引号包裹代码块，并指定语言
+- **图片上传失败**：检查图片路径是否正确，确保图片大小符合微信要求
+
+#### 2. 发布失败
+
+- 检查网络连接
+- 确认微信公众平台配置正确
+- 查看日志中的错误信息
+- 尝试重新获取 Access Token
+
+#### 3. 图片上传问题
+
+- 确保图片格式为 jpg/png
+- 图片大小不超过 2MB
+- 封面图片建议尺寸 900x500 像素
 
 ## 🤝 贡献
 

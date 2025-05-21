@@ -106,15 +106,15 @@ export class MarkdownReaderPlugin implements Plugin {
         throw new Error('文件内容为空');
       }
 
-      const lines = content.split('\n');
+      const contentLines = content.split('\n');
       
       // 提取标题（如果第一行以#开头，则认为是标题）
       let title = '';
       let markdownContent = content;
       
-      if (lines[0].startsWith('# ')) {
-        title = lines[0].substring(2).trim();
-        markdownContent = lines.slice(1).join('\n');
+      if (contentLines[0].startsWith('# ')) {
+        title = contentLines[0].substring(2).trim();
+        markdownContent = contentLines.slice(1).join('\n');
       } else {
         // 如果没有找到标题，使用文件名作为标题
         title = ctx.input.split(/[\\/]/).pop()?.replace(/\.\w+$/, '') || '未命名文章';
@@ -128,17 +128,92 @@ export class MarkdownReaderPlugin implements Plugin {
       
       // 预处理 Markdown 内容
       let processedContent = markdownContent
-        // 处理所有连续的空行，替换为单个换行符
-        .replace(/\n{2,}/g, '\n\n')
-        // 处理代码块
+        // 规范化换行符
+        .replace(/\r\n/g, '\n')
+        // 处理代码块（先处理代码块，避免内部内容被其他规则影响）
         .replace(/```(\w*)\n([\s\S]*?)\n```/g, (_match: string, lang: string, code: string) => {
-          return `<pre style="background: #f6f8fa; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 14px; line-height: 1.5; margin: 15px 0;"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
+          return `\n\`\`\`${lang}\n${code}\n\`\`\`\n`;
         });
+
+      // 处理列表项和空行
+      const lines = processedContent.split('\n');
+      const processedLines: string[] = [];
+      let inList = false;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trimEnd();
+        const isListItem = /^[\s]*[-*+]\s+/.test(line);
+        const isEmpty = line.trim() === '';
+        
+        if (isListItem) {
+          if (!inList) {
+            // 列表开始
+            inList = true;
+            processedLines.push(''); // 添加一个空行
+          }
+          // 处理列表项
+          processedLines.push(line);
+        } else if (isEmpty) {
+          // 空行处理
+          if (inList) {
+            // 如果是列表中的空行，保留一个空行
+            if (i < lines.length - 1 && /^[\s]*[-*+]\s+/.test(lines[i + 1])) {
+              // 如果下一行还是列表项，保留空行
+              processedLines.push('');
+            } else {
+              // 否则结束列表
+              inList = false;
+              processedLines.push('');
+            }
+          } else if (processedLines.length > 0 && processedLines[processedLines.length - 1] !== '') {
+            // 如果不是在列表中，且前一行不是空行，则添加一个空行
+            processedLines.push('');
+          }
+        } else {
+          // 普通行
+          if (inList) {
+            // 如果之前是列表，现在不是列表项，结束列表
+            inList = false;
+            processedLines.push('');
+          }
+          processedLines.push(line);
+        }
+      }
+      
+      // 重新组合内容
+      processedContent = processedLines.join('\n');
+
+      // 配置 marked 选项
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+        headerIds: false,
+        mangle: false,
+        renderer: renderer,
+        // 禁用 smartypants 和 xhtml 选项，避免弃用警告
+        // 这些功能可以通过其他方式实现
+      });
 
       // 转换为HTML
       let htmlContent = '';
       try {
-        htmlContent = marked.parse(processedContent);
+        htmlContent = marked(processedContent);
+        
+        // 后处理：清理多余的空行和空白
+        htmlContent = htmlContent
+          // 移除连续的空行，保留一个
+          .replace(/\n{3,}/g, '\n\n')
+          // 清理列表项后的多余空行
+          .replace(/<li>\s*<\/li>/g, '')  // 移除空列表项
+          .replace(/<ul>\s+<\/ul>/g, '')  // 移除空列表
+          .replace(/<ol>\s+<\/ol>/g, '')  // 移除空有序列表
+          // 确保列表项之间只有一个换行
+          .replace(/<\/li>\s*<li>/g, '</li>\n<li>')
+          // 清理多余的空格
+          .replace(/\s+</g, ' <')
+          .replace(/>\s+/g, '>\n')
+          .trim();
+          
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(`解析Markdown失败: ${errorMessage}`);

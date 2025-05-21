@@ -271,15 +271,34 @@ async function main() {
   try {
     // 解析命令行参数
     const args = process.argv.slice(2);
-    const draft = !args.includes('--draft=false');
-    let articlePath = args.find(arg => !arg.startsWith('--'));
-
+    
+    // 提取选项参数
+    const options: Record<string, string | boolean> = {};
+    const positionalArgs: string[] = [];
+    
+    for (const arg of args) {
+      if (arg.startsWith('--')) {
+        const [key, value] = arg.replace(/^--/, '').split('=');
+        options[key] = value === undefined ? true : value;
+      } else {
+        positionalArgs.push(arg);
+      }
+    }
+    
+    // 获取文章文件路径（第一个位置参数）
+    const articlePath = positionalArgs[0];
+    const draft = options.draft !== 'false';
+    
     // 检查文件路径
     if (!articlePath) {
       logger.error(new Error('请指定要发布的文章文件路径'));
-      logger.info('\n使用方法: pnpm publish:wechat <markdown文件路径> [--publishToDraft=false]');
+      logger.info('\n使用方法: pnpm publish:wechat <markdown文件路径> [选项]');
       logger.info('\n选项:');
-      logger.info('  --publishToDraft=false  直接发布文章（默认为true，发布到草稿箱）');
+      logger.info('  --author=<作者名>        设置文章作者');
+      logger.info('  --title=<文章标题>       设置文章标题（默认使用文件名）');
+      logger.info('  --digest=<文章摘要>      设置文章摘要');
+      logger.info('  --cover=<封面图片路径>    设置封面图片路径（默认为文章同目录下的cover.jpg或cover.png）');
+      logger.info('  --draft=<true/false>    是否发布到草稿箱（默认为true）');
       process.exit(1);
     }
 
@@ -292,29 +311,33 @@ async function main() {
     }
 
     // 确保articlePath是绝对路径
-    articlePath = path.resolve(articlePath);
+    const resolvedArticlePath = path.resolve(articlePath);
 
     // 准备文章选项
     const articleOptions: PublishOptions = {
-      title: path.basename(articlePath, path.extname(articlePath)),
-      author: '',
-      digest: '',
+      title: typeof options.title === 'string' ? options.title : path.basename(articlePath, path.extname(articlePath)),
+      author: typeof options.author === 'string' ? options.author : '',
+      digest: typeof options.digest === 'string' ? options.digest : '',
       draft,
-      coverImage: '', // 将在publishArticle中解析
+      coverImage: typeof options.cover === 'string' ? options.cover : '',
       publishToDraft: draft // 为了向后兼容
     };
     
-    logger.info('文章选项:', {
+    // 记录文章选项（敏感信息脱敏）
+    const loggableOptions = {
       title: articleOptions.title,
-      author: articleOptions.author,
-      digest: articleOptions.digest,
+      author: articleOptions.author || '未设置',
+      digest: articleOptions.digest ? (articleOptions.digest.length > 20 ? 
+             `${articleOptions.digest.substring(0, 20)}...` : articleOptions.digest) : '未设置',
       draft: articleOptions.draft,
-      coverImage: articleOptions.coverImage || '将在发布时解析',
+      coverImage: articleOptions.coverImage || '自动检测',
       publishToDraft: articleOptions.publishToDraft
-    });
+    };
+    
+    logger.info('文章选项:', loggableOptions);
 
     // 发布文章
-    const { success } = await publishArticle(articlePath, articleOptions);
+    const { success } = await publishArticle(resolvedArticlePath, articleOptions);
     process.exit(success ? 0 : 1);
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
