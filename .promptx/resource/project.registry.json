@@ -1,0 +1,89 @@
+{
+  "version": "2.0.0",
+  "source": "project",
+  "metadata": {
+    "version": "2.0.0",
+    "description": "project 级资源注册表",
+    "createdAt": "2025-07-04T09:32:42.207Z",
+    "updatedAt": "2025-07-04T09:32:42.208Z",
+    "resourceCount": 5
+  },
+  "resources": [
+    {
+      "id": "wechat-node-expert",
+      "source": "project",
+      "protocol": "role",
+      "name": "Wechat Node Expert 角色",
+      "description": "专业角色，提供特定领域的专业能力",
+      "reference": "@project://.promptx/resource/domain/wechat-node-expert/wechat-node-expert.role.md",
+      "metadata": {
+        "createdAt": "2025-07-04T09:32:42.207Z",
+        "updatedAt": "2025-07-04T09:32:42.207Z",
+        "scannedAt": "2025-07-04T09:32:42.207Z"
+      }
+    },
+    {
+      "id": "nodejs-expertise",
+      "source": "project",
+      "protocol": "thought",
+      "name": "Nodejs Expertise 思维模式",
+      "description": "思维模式，指导AI的思考方式",
+      "reference": "@project://.promptx/resource/domain/wechat-node-expert/thought/nodejs-expertise.thought.md",
+      "metadata": {
+        "createdAt": "2025-07-04T09:32:42.207Z",
+        "updatedAt": "2025-07-04T09:32:42.207Z",
+        "scannedAt": "2025-07-04T09:32:42.207Z"
+      }
+    },
+    {
+      "id": "wechat-development",
+      "source": "project",
+      "protocol": "thought",
+      "name": "Wechat Development 思维模式",
+      "description": "思维模式，指导AI的思考方式",
+      "reference": "@project://.promptx/resource/domain/wechat-node-expert/thought/wechat-development.thought.md",
+      "metadata": {
+        "createdAt": "2025-07-04T09:32:42.207Z",
+        "updatedAt": "2025-07-04T09:32:42.207Z",
+        "scannedAt": "2025-07-04T09:32:42.207Z"
+      }
+    },
+    {
+      "id": "nodejs-best-practices",
+      "source": "project",
+      "protocol": "execution",
+      "name": "Nodejs Best Practices 执行模式",
+      "description": "执行模式，定义具体的行为模式",
+      "reference": "@project://.promptx/resource/domain/wechat-node-expert/execution/nodejs-best-practices.execution.md",
+      "metadata": {
+        "createdAt": "2025-07-04T09:32:42.207Z",
+        "updatedAt": "2025-07-04T09:32:42.207Z",
+        "scannedAt": "2025-07-04T09:32:42.207Z"
+      }
+    },
+    {
+      "id": "wechat-api-integration",
+      "source": "project",
+      "protocol": "execution",
+      "name": "Wechat Api Integration 执行模式",
+      "description": "执行模式，定义具体的行为模式",
+      "reference": "@project://.promptx/resource/domain/wechat-node-expert/execution/wechat-api-integration.execution.md",
+      "metadata": {
+        "createdAt": "2025-07-04T09:32:42.207Z",
+        "updatedAt": "2025-07-04T09:32:42.207Z",
+        "scannedAt": "2025-07-04T09:32:42.207Z"
+      }
+    }
+  ],
+  "stats": {
+    "totalResources": 5,
+    "byProtocol": {
+      "role": 1,
+      "thought": 2,
+      "execution": 2
+    },
+    "bySource": {
+      "project": 5
+    }
+  }
+}

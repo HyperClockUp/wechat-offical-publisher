@@ -7,13 +7,13 @@
     "wechat-publisher": "dist/index.js"
   },
   "scripts": {
-    "test": "jest",
-    "dev": "tsx src/index.ts",
-    "lint": "eslint . --ext .ts",
-    "format": "prettier --write .",
-    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "publish-article": "tsx scripts/publish.ts",
     "preview": "tsx scripts/preview.ts",
-    "publish:wechat": "tsx scripts/publish.ts"
+    "cli": "tsx src/cli.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "wechat",
@@ -25,28 +25,22 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.6.5",
-    "chalk": "^4.1.2",
+    "@types/form-data": "^2.2.1",
+    "axios": "^1.6.2",
+    "chalk": "^5.3.0",
     "commander": "^11.1.0",
-    "dotenv": "^16.3.1",
-    "form-data": "^4.0.0",
-    "marked": "^5.0.2",
+    "dotenv": "^17.0.1",
+    "form-data": "^4.0.3",
+    "marked": "^11.1.1",
+    "open": "^10.0.3",
+    "sharp": "^0.34.2",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@types/commander": "^2.12.2",
-    "@types/jest": "^29.5.11",
-    "@types/marked": "^5.0.2",
-    "@types/node": "^18.19.47",
-    "@types/yargs": "^17.0.28",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.56.0",
-    "jest": "^29.7.0",
-    "open": "^8.4.2",
-    "prettier": "^3.2.4",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.8.0",
+    "@types/node": "^20.10.5",
+    "@types/sharp": "^0.31.1",
+    "@types/yargs": "^17.0.32",
+    "tsx": "^4.6.2",
     "typescript": "^5.3.3"
   },
   "engines": {
