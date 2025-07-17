@@ -10,6 +10,7 @@ export interface Config {
   appSecret: string;
   debug?: boolean;
   publishToDraft?: boolean;
+  theme?: string; // 主题名称
 }
 
 /**
@@ -46,9 +47,23 @@ export interface PluginContext {
 }
 
 /**
- * 插件函数类型
+ * 插件接口
+ */
+export interface PluginInterface {
+  name: string;
+  description: string;
+  process(content: string, context?: PluginContext): Promise<string>;
+}
+
+/**
+ * 插件函数类型（向后兼容）
  */
 export type Plugin = (content: string, context: PluginContext) => Promise<string>;
+
+/**
+ * 统一插件类型
+ */
+export type UnifiedPlugin = Plugin | PluginInterface;
 
 /**
  * 微信 API 响应

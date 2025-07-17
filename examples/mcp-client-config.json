@@ -1,0 +1,105 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/mcp_config_schema.json",
+  "description": "MCP Client Configuration for WeChat Official Publisher",
+  "mcpServers": {
+    "wechat-official-publisher": {
+      "command": "npx",
+      "args": [
+        "wechat-official-publisher",
+        "mcp-server"
+      ],
+      "env": {
+        "WECHAT_APP_ID": "your_wechat_app_id",
+        "WECHAT_APP_SECRET": "your_wechat_app_secret",
+        "NODE_ENV": "production"
+      },
+      "description": "WeChat Official Publisher MCP Server - 微信公众号文章发布工具",
+      "capabilities": {
+        "tools": [
+          "publish_article",
+          "preview_article",
+          "list_themes",
+          "process_content",
+          "get_config"
+        ]
+      },
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  },
+  "examples": {
+    "publish_article_example": {
+      "description": "发布一篇文章到微信公众号",
+      "tool": "publish_article",
+      "parameters": {
+        "filePath": "./my-article.md",
+        "title": "我的第一篇文章",
+        "author": "作者名",
+        "digest": "这是文章摘要",
+        "draft": true,
+        "theme": "elegant"
+      }
+    },
+    "preview_article_example": {
+      "description": "预览文章效果",
+      "tool": "preview_article",
+      "parameters": {
+        "filePath": "./my-article.md",
+        "theme": "modern"
+      }
+    },
+    "list_themes_example": {
+      "description": "获取可用主题列表",
+      "tool": "list_themes",
+      "parameters": {}
+    },
+    "process_content_example": {
+      "description": "处理文章内容",
+      "tool": "process_content",
+      "parameters": {
+        "content": "# 标题\n\n这是文章内容...",
+        "theme": "warm"
+      }
+    },
+    "get_config_example": {
+      "description": "获取配置信息",
+      "tool": "get_config",
+      "parameters": {}
+    }
+  },
+  "usage_instructions": {
+    "setup": [
+      "1. 安装 wechat-official-publisher: npm install -g wechat-official-publisher",
+      "2. 设置环境变量 WECHAT_APP_ID 和 WECHAT_APP_SECRET",
+      "3. 在 MCP 客户端中添加此配置",
+      "4. 重启 MCP 客户端以加载服务器"
+    ],
+    "verification": [
+      "1. 使用 get_config 工具检查配置是否正确",
+      "2. 使用 list_themes 工具查看可用主题",
+      "3. 使用 preview_article 工具测试文章预览",
+      "4. 使用 publish_article 工具发布测试文章"
+    ],
+    "troubleshooting": {
+      "common_issues": [
+        {
+          "issue": "服务器启动失败",
+          "solution": "检查 Node.js 版本 (>=16.0.0) 和 wechat-official-publisher 是否正确安装"
+        },
+        {
+          "issue": "配置错误",
+          "solution": "确保 WECHAT_APP_ID 和 WECHAT_APP_SECRET 环境变量已正确设置"
+        },
+        {
+          "issue": "文件不存在",
+          "solution": "检查文件路径是否正确，使用绝对路径或相对于工作目录的路径"
+        },
+        {
+          "issue": "主题不存在",
+          "solution": "使用 list_themes 工具查看可用主题列表"
+        }
+      ]
+    }
+  }
+}

@@ -8,6 +8,7 @@ import { WeChatApi } from './utils/wechat-api';
 import { Logger, logger } from './utils/logger';
 import { PublisherError, ConfigError, FileError } from './utils/errors';
 import { defaultPlugins, uploadCoverImage } from './plugins';
+import { themeManager } from './themes';
 
 /**
  * 微信文章发布器 - 简化版
@@ -26,7 +27,8 @@ export class WeChatPublisher {
       this.logger.info('微信发布器初始化成功', {
         appId: this.config.appId.substring(0, 8) + '...',
         debug: this.config.debug,
-        publishToDraft: this.config.publishToDraft
+        publishToDraft: this.config.publishToDraft,
+        theme: this.config.theme || 'default'
       });
     } catch (error) {
       throw new ConfigError('初始化失败', error as Error);
@@ -116,6 +118,28 @@ export class WeChatPublisher {
   }
 
   /**
+   * 处理内容（用于兼容性检查）
+   */
+  async processContent(content: string): Promise<string> {
+    try {
+      // 使用主题渲染器处理内容
+      const themeName = this.config.theme || 'default';
+      const theme = themeManager.getTheme(themeName);
+      if (!theme) {
+        this.logger.warn(`主题 '${themeName}' 不存在，使用默认主题`);
+      }
+      
+      const { ThemeRenderer } = await import('./themes/renderer');
+      const renderer = new ThemeRenderer(theme || themeManager.getTheme('default')!);
+      return renderer.render(content);
+    } catch (error) {
+      const errorMsg = `内容处理失败: ${error instanceof Error ? error.message : String(error)}`;
+      this.logger.error(errorMsg, error as Error);
+      throw new PublisherError(errorMsg, error as Error);
+    }
+  }
+
+  /**
    * 预览文章
    */
   async preview(filePath: string): Promise<string> {
@@ -136,9 +160,27 @@ export class WeChatPublisher {
       // 读取并处理内容
       let content = fs.readFileSync(filePath, 'utf-8');
       
-      // 只应用 markdown 插件进行预览
-      const { markdownPlugin } = await import('./plugins/markdown');
-      content = await markdownPlugin(content, context);
+      // 应用插件处理内容（包括微信兼容性插件）
+      for (const plugin of defaultPlugins) {
+        content = await plugin(content, context);
+      }
+      
+      if (this.config.debug) {
+        console.log('预览模式 - 插件处理后的内容:');
+        console.log('内容长度:', content.length);
+        console.log('内容预览:', content.substring(0, 500));
+      }
+      
+      // 使用主题渲染器进行预览
+      const themeName = this.config.theme || 'default';
+      const theme = themeManager.getTheme(themeName);
+      if (!theme) {
+        this.logger.warn(`主题 '${themeName}' 不存在，使用默认主题`);
+      }
+      
+      const { ThemeRenderer } = await import('./themes/renderer');
+      const renderer = new ThemeRenderer(theme || themeManager.getTheme('default')!);
+      content = renderer.render(content);
 
       // 生成完整的 HTML 页面
       const title = this.extractTitle(content, filePath);

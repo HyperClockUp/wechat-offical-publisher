@@ -1,35 +1,56 @@
 {
-  "name": "wechat-publisher",
-  "version": "1.0.0",
-  "description": "微信文章自动发布工具",
+  "name": "wechat-official-publisher",
+  "version": "0.0.9",
+  "author": "chengfx",
+  "email": "cfx_software@163.com",
+  "description": "微信文章自动发布工具，支持mcp调用",
   "main": "dist/index.js",
   "bin": {
-    "wechat-publisher": "dist/index.js"
+    "wechat-official-publisher": "dist/src/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "publish-article": "tsx scripts/publish.ts",
     "preview": "tsx scripts/preview.ts",
     "cli": "tsx src/cli.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "mcp-server": "tsx src/mcp/index.ts",
+    "mcp-server:sse": "tsx src/cli.ts mcp-server --transport sse",
+    "mcp-server:stdio": "tsx src/cli.ts mcp-server --transport stdio",
+    "mcp-server:build": "tsc && node dist/mcp/index.js",
+    "mcp-server:start": "tsx scripts/mcp-server.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "type-check": "tsc --noEmit",
+    "quality-check": "npm run type-check && npm run lint && npm run test:coverage",
+    "prepublishOnly": "npm run build",
+    "publish:npm": "tsx scripts/publish-npm.ts"
   },
   "keywords": [
     "wechat",
     "publisher",
     "wechat-public-account",
     "markdown",
-    "typescript"
+    "typescript",
+    "mcp",
+    "model-context-protocol"
   ],
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
     "@types/form-data": "^2.2.1",
     "axios": "^1.6.2",
     "chalk": "^5.3.0",
     "commander": "^11.1.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.0.1",
+    "express": "^4.18.2",
     "form-data": "^4.0.3",
     "marked": "^11.1.1",
     "open": "^10.0.3",
@@ -37,21 +58,36 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.8",
     "@types/node": "^20.10.5",
     "@types/sharp": "^0.31.1",
     "@types/yargs": "^17.0.32",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.1.1",
     "tsx": "^4.6.2",
     "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=16.0.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/wechat-publisher.git"
-  },
-  "bugs": {
-    "url": "https://github.com/your-username/wechat-publisher/issues"
-  },
-  "homepage": "https://github.com/your-username/wechat-publisher#readme"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "mcp-server.json",
+    "docs/",
+    "examples/"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
