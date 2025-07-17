@@ -1,6 +1,6 @@
 {
   "name": "wechat-official-publisher",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "author": "chengfx",
   "email": "cfx_software@163.com",
   "description": "微信文章自动发布工具，支持mcp调用",

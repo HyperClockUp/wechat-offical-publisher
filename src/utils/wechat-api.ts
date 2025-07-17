@@ -74,6 +74,16 @@ export class WeChatApi {
         });
       }
     } catch (error) {
+      if (this.config.debug) {
+        console.error('刷新访问令牌失败详情:', error);
+        if (axios.isAxiosError(error)) {
+          console.error('Axios错误详情:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message
+          });
+        }
+      }
       throw new ApiError('刷新访问令牌失败', 0, error as Error);
     }
   }

@@ -7,6 +7,7 @@ import { WeChatPublisher } from '../index';
 import { logger } from '../utils/logger';
 import { existsSync } from 'fs';
 import { Config } from '../types';
+import { ApiError } from '../utils/errors';
 
 /**
  * MCP工具定义（与stdio版本保持一致）
@@ -275,40 +276,81 @@ export class WeChatPublisherSSEMCPServer {
     if (appId) config.appId = appId;
     if (appSecret) config.appSecret = appSecret;
 
-    const publisher = this.getPublisher(config);
-    const result = await publisher.publish(filePath, {
-      title,
-      author,
-      digest,
-      coverImage,
-      draft
-    });
+    try {
+      const publisher = this.getPublisher(config);
+      const result = await publisher.publish(filePath, {
+        title,
+        author,
+        digest,
+        coverImage,
+        draft
+      });
 
-    // 广播完成事件
-    this.transport.broadcast({
-      type: 'tool_progress',
-      data: {
-        tool: 'publish_article',
-        status: 'completed',
-        message: '文章发布完成'
-      }
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            success: result.success,
-            title: result.title,
-            mediaId: result.mediaId,
-            message: result.message,
-            contentLength: result.content.length,
-            isDraft: draft
-          }, null, 2)
+      // 广播完成事件
+      this.transport.broadcast({
+        type: 'tool_progress',
+        data: {
+          tool: 'publish_article',
+          status: 'completed',
+          message: '文章发布完成'
         }
-      ]
-    };
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: result.success,
+              title: result.title,
+              mediaId: result.mediaId,
+              message: result.message,
+              contentLength: result.content.length,
+              isDraft: draft
+            }, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      let errorMessage = '未知错误';
+      let errorDetails: { code?: number; cause?: string } = {};
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error instanceof ApiError) {
+          errorDetails = {
+            code: error.code,
+            cause: error.cause?.message
+          };
+        }
+      } else {
+        errorMessage = String(error);
+      }
+
+      // 广播错误事件
+      this.transport.broadcast({
+        type: 'tool_progress',
+        data: {
+          tool: 'publish_article',
+          status: 'error',
+          message: `发布失败: ${errorMessage}`,
+          details: errorDetails
+        }
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: errorMessage,
+              details: errorDetails
+            }, null, 2)
+          }
+        ]
+      };
+    }
   }
 
   /**

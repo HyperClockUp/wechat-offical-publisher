@@ -808,104 +808,6 @@ cron.schedule('0 9 * * *', async () => {
 console.log('定时发布任务已启动');
 ```
 
-#### 3. 与 CMS 系统集成
-
-```javascript
-const { WeChatPublisher } = require('wechat-official-publisher');
-
-class CMSWeChatIntegration {
-  constructor(cmsConfig, wechatConfig) {
-    this.publisher = new WeChatPublisher(wechatConfig);
-    this.cmsConfig = cmsConfig;
-  }
-  
-  // 从 CMS 获取文章并发布到微信
-  async syncArticleFromCMS(articleId) {
-    try {
-      // 1. 从 CMS 获取文章数据
-      const article = await this.fetchArticleFromCMS(articleId);
-      
-      // 2. 转换为 Markdown 格式
-      const markdownContent = this.convertToMarkdown(article);
-      
-      // 3. 保存临时文件
-      const tempFile = `./temp/${articleId}.md`;
-      fs.writeFileSync(tempFile, markdownContent);
-      
-      // 4. 发布到微信
-      const result = await this.publisher.publish(tempFile, {
-        title: article.title,
-        author: article.author,
-        digest: article.summary,
-        coverImage: article.coverImage,
-        draft: !article.publishImmediately
-      });
-      
-      // 5. 更新 CMS 中的发布状态
-      await this.updateCMSPublishStatus(articleId, {
-        wechatMediaId: result.mediaId,
-        publishedAt: new Date(),
-        status: 'published'
-      });
-      
-      // 6. 清理临时文件
-      fs.unlinkSync(tempFile);
-      
-      return result;
-      
-    } catch (error) {
-      console.error(`CMS 文章同步失败 (ID: ${articleId}):`, error.message);
-      throw error;
-    }
-  }
-  
-  async fetchArticleFromCMS(articleId) {
-    // 实现从 CMS 获取文章的逻辑
-    // 这里是示例代码
-    const response = await fetch(`${this.cmsConfig.apiUrl}/articles/${articleId}`, {
-      headers: {
-        'Authorization': `Bearer ${this.cmsConfig.apiToken}`
-      }
-    });
-    return response.json();
-  }
-  
-  convertToMarkdown(article) {
-    // 将 CMS 文章格式转换为 Markdown
-    return `# ${article.title}\n\n${article.content}`;
-  }
-  
-  async updateCMSPublishStatus(articleId, status) {
-    // 更新 CMS 中的发布状态
-    await fetch(`${this.cmsConfig.apiUrl}/articles/${articleId}/publish-status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.cmsConfig.apiToken}`
-      },
-      body: JSON.stringify(status)
-    });
-  }
-}
-
-// 使用示例
-const integration = new CMSWeChatIntegration(
-  {
-    apiUrl: 'https://your-cms.com/api',
-    apiToken: 'your-cms-token'
-  },
-  {
-    appId: process.env.WECHAT_APP_ID,
-    appSecret: process.env.WECHAT_APP_SECRET
-  }
-);
-
-// 同步特定文章
- integration.syncArticleFromCMS('article-123')
-   .then(result => console.log('同步成功:', result))
-   .catch(error => console.error('同步失败:', error));
- ```
-
 ### 工厂函数使用
 
 ```javascript
@@ -1130,33 +1032,731 @@ npm run format
 npm run build
 ```
 
-### 发布新版本
+### 开发规范
 
-```bash
-# 自动化发布脚本
-npm run publish:npm
+- 遵循现有的代码风格
+- 添加适当的测试用例
+- 更新相关文档
+- 确保所有测试通过
+
+## 更新日志
+
+### [0.0.9] - 未发布
+
+#### Added
+- 支持通过工具参数传递 `appId` 和 `appSecret`（优先于环境变量）。
+- 添加SSE传输协议的MCP服务器。
+- 更新CLI以支持SSE模式。
+- 添加SSE客户端示例和配置文件。
+- 更新文档以包含SSE使用说明。
+
+#### Fixed
+- 修复配置类型错误。
+
+### [0.0.8] - 2023-12-01
+
+#### Added
+- 初始版本，支持微信公众号文章发布。
+- MCP服务器支持（stdio模式）。
+- 主题和插件系统。
+- 预览功能。
+
+## 项目结构
+
+```
+src/
+├── index.ts        # 主入口和核心类
+├── cli.ts          # 命令行界面
+├── types.ts        # 类型定义
+├── config.ts       # 配置管理
+├── utils/          # 工具函数
+│   ├── errors.ts       # 错误处理
+│   ├── logger.ts       # 日志工具
+│   └── wechat-api.ts   # 微信 API 封装
+└── plugins/        # 插件系统
+    ├── index.ts        # 插件导出
+    ├── markdown.ts     # Markdown 处理
+    └── image.ts        # 图片处理
+
+scripts/           # 脚本文件
+├── publish.ts     # 发布脚本
+└── preview.ts     # 预览脚本
+
+example/           # 示例文件
+└── demo-article.md
 ```
 
-## 贡献
+## 插件开发
 
-我们欢迎所有形式的贡献！
+### 创建自定义插件
 
-### 如何贡献
+```typescript
+import { Plugin } from './src/types';
 
-1. **Fork** 本仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 **Pull Request**
+// 函数式插件
+export const myPlugin: Plugin = async (article, context) => {
+  // 自定义处理逻辑
+  article.content = article.content.replace(/old/g, 'new');
+  return article;
+};
+```
 
-### 贡献类型
+### 使用插件
 
-- 🐛 **Bug 修复**：修复现有功能的问题
-- ✨ **新功能**：添加新的功能特性
-- 📚 **文档**：改进文档和示例
-- 🎨 **主题**：贡献新的主题样式
-- 🧪 **测试**：添加或改进测试用例
-- 🔧 **工具**：改进开发工具和流程
+```typescript
+import { WeChatPublisher } from './src/index';
+import { myPlugin } from './my-plugin';
+
+const publisher = new WeChatPublisher();
+
+// 发布时使用插件
+await publisher.publish('article.md', {
+  plugins: [myPlugin]
+});
+```
+
+## Node.js 编程使用
+
+本项目完全支持通过 Node.js 编程方式引用和运行，提供了完整的 API 接口。
+
+### 安装和导入
+
+```bash
+npm install wechat-official-publisher
+```
+
+```javascript
+// CommonJS
+const { WeChatPublisher, createPublisher } = require('wechat-official-publisher');
+
+// ES Modules
+import { WeChatPublisher, createPublisher } from 'wechat-official-publisher';
+```
+
+### 基础使用
+
+```javascript
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+// 创建发布器实例
+const publisher = new WeChatPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET,
+  debug: false,
+  publishToDraft: true, // 默认发布到草稿箱
+  theme: 'elegant' // 使用优雅主题
+});
+
+// 发布文章
+async function publishArticle() {
+  try {
+    const result = await publisher.publish('./my-article.md', {
+      title: '我的第一篇文章',
+      author: '张三',
+      digest: '这是一篇关于技术分享的文章',
+      coverImage: './cover.jpg',
+      draft: false // 直接发布，不保存为草稿
+    });
+    
+    console.log('发布成功:', result);
+    // 输出: { success: true, mediaId: 'xxx', title: '...', message: '发布成功' }
+  } catch (error) {
+    console.error('发布失败:', error.message);
+  }
+}
+
+publishArticle();
+```
+
+### 完整的 API 方法
+
+#### 1. 发布文章 - `publish(filePath, options)`
+
+```javascript
+const result = await publisher.publish('./article.md', {
+  title: '自定义标题',        // 可选，默认从 Markdown 文件提取
+  author: '作者名',          // 可选
+  digest: '文章摘要',        // 可选，默认自动生成
+  coverImage: './cover.jpg', // 可选，封面图片路径
+  draft: false              // 可选，true=草稿，false=直接发布
+});
+
+console.log(result);
+// {
+//   success: true,
+//   mediaId: 'media_id_from_wechat',
+//   title: '文章标题',
+//   content: '处理后的HTML内容',
+//   message: '发布成功',
+//   url: 'https://mp.weixin.qq.com/...'
+// }
+```
+
+#### 2. 预览文章 - `preview(filePath)`
+
+```javascript
+// 生成预览文件
+const previewPath = await publisher.preview('./article.md');
+console.log('预览文件路径:', previewPath);
+// 输出: ./preview/1234567890.html
+
+// 可以用浏览器打开预览文件
+const open = require('open');
+open(previewPath);
+```
+
+#### 3. 内容处理 - `processContent(content)`
+
+```javascript
+// 处理 Markdown 内容（应用主题和插件）
+const markdownContent = '# 标题\n\n这是内容';
+const processedHtml = await publisher.processContent(markdownContent);
+console.log(processedHtml); // 输出处理后的 HTML
+```
+
+### 高级用法
+
+#### 批量发布文章
+
+```javascript
+const fs = require('fs');
+const path = require('path');
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+const publisher = new WeChatPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET,
+  debug: true
+});
+
+async function batchPublish() {
+  const articlesDir = './articles';
+  const files = fs.readdirSync(articlesDir)
+    .filter(file => file.endsWith('.md'));
+  
+  const results = [];
+  
+  for (const file of files) {
+    try {
+      console.log(`正在发布: ${file}`);
+      
+      const result = await publisher.publish(path.join(articlesDir, file), {
+        draft: true, // 先发布到草稿箱
+        author: '技术团队'
+      });
+      
+      results.push({ file, success: true, result });
+      console.log(`✅ ${file} 发布成功`);
+      
+      // 避免频率限制，添加延迟
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+    } catch (error) {
+      results.push({ file, success: false, error: error.message });
+      console.error(`❌ ${file} 发布失败:`, error.message);
+    }
+  }
+  
+  // 输出汇总报告
+  console.log('\n📊 发布汇总:');
+  console.log(`总计: ${results.length} 篇文章`);
+  console.log(`成功: ${results.filter(r => r.success).length} 篇`);
+  console.log(`失败: ${results.filter(r => !r.success).length} 篇`);
+  
+  return results;
+}
+
+batchPublish();
+```
+
+#### 自定义插件处理
+
+```javascript
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+// 创建带有自定义配置的发布器
+const publisher = new WeChatPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET,
+  theme: 'modern'
+});
+
+// 自定义内容处理
+async function customPublish() {
+  const filePath = './article.md';
+  
+  // 1. 先处理内容（应用主题和插件）
+  const fs = require('fs');
+  const rawContent = fs.readFileSync(filePath, 'utf-8');
+  const processedContent = await publisher.processContent(rawContent);
+  
+  // 2. 可以在这里添加自定义处理逻辑
+  // 比如添加统计代码、修改样式等
+  const customizedContent = processedContent
+    .replace(/<\/body>/g, '<script>console.log("文章已加载");</script></body>');
+  
+  // 3. 直接发布处理后的内容
+  const result = await publisher.publish(filePath, {
+    title: '自定义处理的文章',
+    digest: '这篇文章经过了自定义处理'
+  });
+  
+  return result;
+}
+```
+
+#### 错误处理和重试机制
+
+```javascript
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+class RobustPublisher {
+  constructor(config) {
+    this.publisher = new WeChatPublisher(config);
+    this.maxRetries = 3;
+    this.retryDelay = 5000; // 5秒
+  }
+  
+  async publishWithRetry(filePath, options = {}) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        console.log(`尝试发布 (${attempt}/${this.maxRetries}): ${filePath}`);
+        
+        const result = await this.publisher.publish(filePath, options);
+        console.log(`✅ 发布成功 (第${attempt}次尝试)`);
+        return result;
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ 第${attempt}次尝试失败:`, error.message);
+        
+        if (attempt < this.maxRetries) {
+          console.log(`⏳ ${this.retryDelay/1000}秒后重试...`);
+          await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+        }
+      }
+    }
+    
+    throw new Error(`发布失败，已重试${this.maxRetries}次: ${lastError.message}`);
+  }
+}
+
+// 使用示例
+const robustPublisher = new RobustPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET
+});
+
+robustPublisher.publishWithRetry('./important-article.md')
+  .then(result => console.log('最终发布成功:', result))
+  .catch(error => console.error('最终发布失败:', error));
+```
+
+### TypeScript 支持
+
+```typescript
+import { 
+  WeChatPublisher, 
+  PublishOptions, 
+  PublishResult, 
+  Config 
+} from 'wechat-official-publisher';
+
+// 类型安全的配置
+const config: Config = {
+  appId: process.env.WECHAT_APP_ID!,
+  appSecret: process.env.WECHAT_APP_SECRET!,
+  debug: false,
+  publishToDraft: true,
+  theme: 'elegant'
+};
+
+const publisher = new WeChatPublisher(config);
+
+// 类型安全的发布选项
+const options: PublishOptions = {
+  title: '技术分享',
+  author: '开发团队',
+  digest: '深入探讨前端技术',
+  coverImage: './cover.jpg',
+  draft: false
+};
+
+// 类型安全的结果处理
+async function typedPublish(): Promise<PublishResult> {
+  try {
+    const result: PublishResult = await publisher.publish('./article.md', options);
+    
+    if (result.success) {
+      console.log(`发布成功: ${result.title}`);
+      console.log(`媒体ID: ${result.mediaId}`);
+      console.log(`访问链接: ${result.url}`);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('发布失败:', error);
+    throw error;
+  }
+}
+
+typedPublish();
+```
+
+### 实际应用场景
+
+#### 1. 集成到 Express 服务器
+
+```javascript
+const express = require('express');
+const multer = require('multer');
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+const app = express();
+const upload = multer({ dest: 'uploads/' });
+
+// 创建发布器实例
+const publisher = new WeChatPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET,
+  debug: process.env.NODE_ENV === 'development'
+});
+
+// 发布文章接口
+app.post('/api/publish', upload.single('markdown'), async (req, res) => {
+  try {
+    const { title, author, digest, theme = 'default' } = req.body;
+    const filePath = req.file.path;
+    
+    // 发布文章
+    const result = await publisher.publish(filePath, {
+      title,
+      author,
+      digest,
+      draft: true // 先发布到草稿箱
+    });
+    
+    res.json({
+      success: true,
+      data: result,
+      message: '文章发布成功'
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// 预览文章接口
+app.post('/api/preview', upload.single('markdown'), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const previewPath = await publisher.preview(filePath);
+    
+    res.json({
+      success: true,
+      previewUrl: `/preview/${path.basename(previewPath)}`
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// 静态文件服务
+app.use('/preview', express.static('preview'));
+
+app.listen(3000, () => {
+  console.log('微信发布服务器启动在端口 3000');
+});
+```
+
+#### 2. 定时发布任务
+
+```javascript
+const cron = require('node-cron');
+const fs = require('fs');
+const path = require('path');
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+const publisher = new WeChatPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET
+});
+
+// 每天上午 9 点自动发布
+cron.schedule('0 9 * * *', async () => {
+  console.log('开始执行定时发布任务...');
+  
+  try {
+    const scheduledDir = './scheduled-articles';
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayFile = path.join(scheduledDir, `${today}.md`);
+    
+    if (fs.existsSync(todayFile)) {
+      console.log(`发现今日文章: ${todayFile}`);
+      
+      const result = await publisher.publish(todayFile, {
+        draft: false, // 直接发布
+        author: '自动发布系统'
+      });
+      
+      console.log('✅ 定时发布成功:', result.title);
+      
+      // 发布成功后移动文件到已发布目录
+      const publishedDir = './published-articles';
+      if (!fs.existsSync(publishedDir)) {
+        fs.mkdirSync(publishedDir, { recursive: true });
+      }
+      
+      fs.renameSync(todayFile, path.join(publishedDir, `${today}.md`));
+      
+    } else {
+      console.log('今日无预定发布文章');
+    }
+    
+  } catch (error) {
+    console.error('❌ 定时发布失败:', error.message);
+    
+    // 可以在这里添加错误通知逻辑
+    // 比如发送邮件、钉钉通知等
+  }
+});
+
+console.log('定时发布任务已启动');
+```
+
+### 工厂函数使用
+
+```javascript
+const { createPublisher } = require('wechat-official-publisher');
+
+// 使用工厂函数创建发布器
+const publisher = createPublisher({
+  appId: process.env.WECHAT_APP_ID,
+  appSecret: process.env.WECHAT_APP_SECRET,
+  theme: 'modern'
+});
+
+// 直接使用
+publisher.publish('./article.md', { title: '快速发布' })
+  .then(result => console.log('发布成功:', result))
+  .catch(error => console.error('发布失败:', error));
+```
+
+### 快速开始示例
+
+创建一个简单的 Node.js 脚本来发布文章：
+
+```javascript
+// publish-script.js
+require('dotenv').config();
+const { WeChatPublisher } = require('wechat-official-publisher');
+
+async function main() {
+  // 创建发布器
+  const publisher = new WeChatPublisher({
+    appId: process.env.WECHAT_APP_ID,
+    appSecret: process.env.WECHAT_APP_SECRET,
+    debug: true
+  });
+  
+  try {
+    // 发布文章
+    console.log('开始发布文章...');
+    const result = await publisher.publish('./my-article.md', {
+      title: '我的第一篇文章',
+      author: '作者名',
+      draft: true // 先发布到草稿箱
+    });
+    
+    console.log('✅ 发布成功!');
+    console.log('文章标题:', result.title);
+    console.log('媒体ID:', result.mediaId);
+    
+  } catch (error) {
+    console.error('❌ 发布失败:', error.message);
+  }
+}
+
+// 运行脚本
+main();
+```
+
+然后运行：
+
+```bash
+node publish-script.js
+```
+
+## 总结
+
+**本项目完全支持 Node.js 编程方式使用**，提供了以下核心功能：
+
+- ✅ **完整的 API 接口**：`publish()`, `preview()`, `processContent()`
+- ✅ **TypeScript 支持**：完整的类型定义
+- ✅ **灵活的配置**：支持多种配置方式
+- ✅ **错误处理**：详细的错误信息和异常处理
+- ✅ **实际应用场景**：Web 服务器、定时任务、CMS 集成
+- ✅ **批量处理**：支持批量发布和处理
+- ✅ **主题系统**：5套内置主题，支持自定义
+
+无论是简单的脚本使用，还是复杂的企业级应用集成，都能满足需求。
+
+## 主题系统
+
+### 内置主题
+
+| 主题名称 | 描述 | 适用场景 |
+|---------|------|----------|
+| `default` | 默认主题 | 通用文章 |
+| `elegant` | 优雅主题 | 商务、正式文章 |
+| `modern` | 现代主题 | 科技、创新类文章 |
+| `warm` | 温暖主题 | 生活、情感类文章 |
+| `cute` | 可爱主题 | 轻松、有趣的内容 |
+
+### 自定义主题
+
+```javascript
+const { ThemeManager } = require('wechat-official-publisher');
+
+// 注册自定义主题
+ThemeManager.registerTheme('my-theme', {
+  name: 'my-theme',
+  displayName: '我的主题',
+  description: '自定义主题描述',
+  styles: {
+    body: {
+      fontFamily: 'PingFang SC, Helvetica Neue, sans-serif',
+      fontSize: '16px',
+      lineHeight: '1.6',
+      color: '#333333'
+    },
+    headings: {
+      h1: { fontSize: '24px', color: '#2c3e50' },
+      h2: { fontSize: '20px', color: '#34495e' },
+      h3: { fontSize: '18px', color: '#7f8c8d' }
+    },
+    // ... 更多样式配置
+  }
+});
+
+// 使用自定义主题
+await publisher.publishArticle({
+  filePath: './article.md',
+  theme: 'my-theme'
+});
+```
+
+## API 文档
+
+### WeChatPublisher
+
+主要的发布器类，提供文章发布功能。
+
+#### 方法
+
+- `publish(filePath, options)`: 发布文章
+- `preview(filePath)`: 生成预览
+- `uploadImage(imagePath)`: 上传图片
+
+#### 选项
+
+```typescript
+interface PublishOptions {
+  title?: string;      // 文章标题
+  author?: string;     // 作者
+  digest?: string;     // 摘要
+  coverImage?: string; // 封面图片路径
+  isDraft?: boolean;   // 是否为草稿
+  plugins?: Plugin[];  // 自定义插件
+}
+```
+
+## 故障排除
+
+### 常见问题
+
+#### 1. 认证失败
+
+```
+Error: 微信认证失败，请检查 AppID 和 AppSecret
+```
+
+**解决方案：**
+- 检查 `.env` 文件中的 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET` 是否正确
+- 确认微信公众号已开通相关权限
+- 检查网络连接是否正常
+
+#### 2. 图片上传失败
+
+```
+Error: 图片上传失败，文件格式不支持
+```
+
+**解决方案：**
+- 确保图片格式为 JPG、PNG 或 GIF
+- 检查图片文件大小不超过 10MB
+- 确认图片文件路径正确
+
+#### 3. 主题不存在
+
+```
+Error: 主题 'xxx' 不存在
+```
+
+**解决方案：**
+- 使用 `npx wechat-official-publisher --list-themes` 查看可用主题
+- 检查主题名称拼写是否正确
+- 如果是自定义主题，确认已正确注册
+
+### 调试模式
+
+启用调试模式获取详细日志：
+
+```bash
+# 命令行启用调试
+npx wechat-official-publisher publish article.md --debug
+
+# 环境变量启用调试
+DEBUG=true npx wechat-official-publisher publish article.md
+```
+
+## 开发
+
+### 本地开发
+
+```bash
+# 克隆项目
+git clone https://github.com/wechat-official-publisher/wechat-official-publisher.git
+cd wechat-official-publisher
+
+# 安装依赖
+npm install
+
+# 运行测试
+npm test
+
+# 测试覆盖率
+npm run test:coverage
+
+# 类型检查
+npm run type-check
+
+# 代码格式化
+npm run format
+
+# 构建项目
+npm run build
+```
 
 ### 开发规范
 
