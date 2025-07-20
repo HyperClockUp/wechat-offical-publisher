@@ -1,0 +1,78 @@
+{
+  "name": "wechat-official-publisher",
+  "version": "1.0.0",
+  "author": "chengfx",
+  "email": "cfx_software@163.com",
+  "description": "微信文章自动发布工具，支持多账号管理、网络图片上传、stable_token接口和MCP协议",
+  "main": "dist/index.js",
+  "bin": {
+    "wechat-official-publisher": "dist/src/cli.js"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "cli": "tsx src/cli.ts",
+    "mcp-server": "tsx src/mcp/index.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "wechat",
+    "publisher",
+    "wechat-public-account",
+    "markdown",
+    "typescript",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@types/form-data": "^2.2.1",
+    "axios": "^1.6.2",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "express": "^4.18.2",
+    "form-data": "^4.0.3",
+    "marked": "^11.1.1",
+    "open": "^10.0.3",
+    "sharp": "^0.34.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.5",
+    "@types/sharp": "^0.31.1",
+    "@types/yargs": "^17.0.32",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "cover.png",
+    "mcp-server.json",
+    "example/"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
