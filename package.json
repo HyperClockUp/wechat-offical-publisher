@@ -1,6 +1,6 @@
 {
   "name": "wechat-official-publisher",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "chengfx",
   "email": "cfx_software@163.com",
   "description": "微信文章自动发布工具，支持多账号管理、网络图片上传、stable_token接口和MCP协议",

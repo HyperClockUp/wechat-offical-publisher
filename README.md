@@ -98,13 +98,51 @@ WECHAT_APP_ID=appid2 npx wechat-official-publisher publish article2.md
 npx wechat-official-publisher mcp-server
 ```
 
-MCP 工具包括：
-- `publish_article`: 发布文章
-- `preview_article`: 预览文章
-- `list_themes`: 列出主题
-- `process_content`: 处理内容
-- `get_config`: 获取配置
-- `clear_token_cache`: 清理缓存
+#### MCP 配置示例
+
+在你的 MCP 客户端配置文件中添加：
+
+```json
+{
+  "mcpServers": {
+    "wechat-official-publisher": {
+      "command": "npx",
+      "args": ["wechat-official-publisher", "mcp-server"]
+    }
+  }
+}
+```
+
+#### 可用的 MCP 工具
+
+- `publish_article`: 发布文章到微信公众号
+- `preview_article`: 预览文章效果
+- `list_themes`: 获取可用主题列表
+- `process_content`: 处理文章内容
+- `get_config`: 获取配置信息
+- `clear_token_cache`: 清理token缓存
+
+#### MCP 故障排除
+
+如果遇到 "Connection closed" 错误，请尝试：
+
+1. **检查包版本**：确保使用最新版本
+   ```bash
+   npm install -g wechat-official-publisher@latest
+   ```
+
+2. **验证命令**：手动测试MCP服务器启动
+   ```bash
+   npx wechat-official-publisher mcp-server --debug
+   ```
+
+3. **检查环境变量**：确保设置了必要的环境变量
+   ```bash
+   echo $WECHAT_APP_ID
+   echo $WECHAT_APP_SECRET
+   ```
+
+4. **重新连接**：在MCP客户端中重新连接服务器
 
 ## 🎨 主题系统
 

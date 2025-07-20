@@ -8,6 +8,7 @@ import { PublisherError } from './utils/errors';
 import open from 'open';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { startMCPServer } from './mcp/index';
 
 /**
  * CLI 入口函数
@@ -307,8 +308,7 @@ export async function runCli() {
           
           logger.info('🚀 启动stdio MCP服务器...');
           
-          // 导入并启动stdio MCP服务器
-          const { startMCPServer } = require('./mcp');
+          // 启动stdio MCP服务器
           await startMCPServer();
         }
         
