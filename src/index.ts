@@ -9,6 +9,8 @@ import { Logger, logger } from './utils/logger';
 import { PublisherError, ConfigError, FileError } from './utils/errors';
 import { defaultPlugins, uploadCoverImage } from './plugins';
 import { themeManager } from './themes';
+import { cache } from './utils/cache';
+import { TokenManager } from './utils/token-manager';
 
 /**
  * 微信文章发布器 - 简化版
@@ -21,18 +23,46 @@ export class WeChatPublisher {
   constructor(userConfig: Partial<Config> = {}) {
     try {
       this.config = loadConfig(userConfig);
-      this.api = new WeChatApi(this.config);
+      
+      // 确保 appId 和 appSecret 存在
+      if (!this.config.appId || !this.config.appSecret) {
+        throw new ConfigError('缺少微信公众号AppID或AppSecret。请在配置文件或环境变量中设置。');
+      }
+      
+      this.api = new WeChatApi(this.config.appId, this.config.appSecret, this.config.debug, this.config.useStableToken);
       this.logger = new Logger(this.config.debug);
       
       this.logger.info('微信发布器初始化成功', {
         appId: this.config.appId.substring(0, 8) + '...',
         debug: this.config.debug,
         publishToDraft: this.config.publishToDraft,
-        theme: this.config.theme || 'default'
+        theme: this.config.theme || 'default',
+        useStableToken: this.config.useStableToken || false
       });
     } catch (error) {
       throw new ConfigError('初始化失败', error as Error);
     }
+  }
+
+  /**
+   * 清空当前公众号的Access Token缓存
+   */
+  clearAccessTokenCache(): void {
+    this.api.clearAccessTokenCache();
+  }
+
+  /**
+   * 清空指定公众号的token缓存（静态方法）
+   */
+  static clearTokenCache(appId: string): void {
+    TokenManager.clearTokenCache(appId);
+  }
+
+  /**
+   * 清空所有公众号的token缓存（静态方法）
+   */
+  static clearAllTokenCache(): void {
+    TokenManager.clearAllTokenCache();
   }
 
   /**
@@ -51,7 +81,6 @@ export class WeChatPublisher {
       const context: PluginContext = {
         filePath,
         config: this.config,
-        accessToken: await this.api.getAccessToken()
       };
 
       // 读取文件内容
@@ -154,7 +183,6 @@ export class WeChatPublisher {
       const context: PluginContext = {
         filePath,
         config: this.config,
-        accessToken: ''
       };
 
       // 读取并处理内容

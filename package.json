@@ -1,9 +1,9 @@
 {
   "name": "wechat-official-publisher",
-  "version": "0.0.10",
+  "version": "0.2.0",
   "author": "chengfx",
   "email": "cfx_software@163.com",
-  "description": "微信文章自动发布工具，支持mcp调用",
+  "description": "微信文章自动发布工具，支持多账号管理、网络图片上传、stable_token接口和MCP协议",
   "main": "dist/index.js",
   "bin": {
     "wechat-official-publisher": "dist/src/cli.js"

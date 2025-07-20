@@ -11,6 +11,7 @@ export interface Config {
   debug?: boolean;
   publishToDraft?: boolean;
   theme?: string; // 主题名称
+  useStableToken?: boolean; // 是否使用 stable_token 接口
 }
 
 /**
@@ -42,7 +43,6 @@ export interface PublishResult {
 export interface PluginContext {
   filePath: string;
   config: Config;
-  accessToken: string;
   [key: string]: any;
 }
 
@@ -76,6 +76,11 @@ export interface WeChatApiResponse {
   media_id?: string;
   thumb_media_id?: string;
   url?: string;
+  // 发布相关字段
+  publish_id?: string;
+  publishId?: string;
+  msg_data_id?: string;
+  msgDataId?: string;
 }
 
 /**

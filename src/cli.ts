@@ -70,6 +70,11 @@ export async function runCli() {
           describe: '启用调试模式',
           type: 'boolean',
           default: false
+        })
+        .option('stable-token', {
+          describe: '使用微信 stable_token 接口获取 Access Token',
+          type: 'boolean',
+          default: false
         });
     },
     async (argv) => {
@@ -79,7 +84,8 @@ export async function runCli() {
         const publisher = new WeChatPublisher({
           debug: argv.debug,
           publishToDraft: argv.draft,
-          theme: themeName
+          theme: themeName,
+          useStableToken: argv.stableToken
         });
 
         const result = await publisher.publish(argv.file, {
@@ -313,6 +319,89 @@ export async function runCli() {
   );
 
   // MCP服务器信息命令
+  cli.command(
+    'mcp-info',
+    '显示MCP服务器信息',
+    () => {},
+    async () => {
+      try {
+        const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+        
+        logger.info('🔧 MCP服务器信息:');
+        logger.info(`📦 名称: ${packageJson.name}`);
+        logger.info(`🔖 版本: ${packageJson.version}`);
+        logger.info(`👤 作者: ${packageJson.author}`);
+        logger.info(`📄 描述: ${packageJson.description}`);
+        logger.info('');
+        
+        logger.info('🎯 可用工具:');
+        logger.info('  • publish_article - 发布文章到微信公众号');
+        logger.info('  • preview_article - 预览文章效果');
+        logger.info('  • list_themes - 获取可用主题列表');
+        logger.info('  • process_content - 处理文章内容');
+        logger.info('  • get_config - 获取配置信息');
+        logger.info('');
+        
+        logger.info('🔗 传输协议: stdio');
+        logger.info('📋 配置要求:');
+        logger.info('  • WECHAT_APP_ID - 微信公众号AppID');
+        logger.info('  • WECHAT_APP_SECRET - 微信公众号AppSecret');
+        logger.info('');
+        
+        logger.info('💡 使用方法:');
+        logger.info('  npm run mcp-server');
+        logger.info('  或');
+        logger.info('  wechat-official-publisher mcp-server');
+        
+      } catch (error) {
+        handleError(error);
+      }
+    }
+  );
+
+  // 清空缓存命令
+  cli.command(
+    'clear-cache',
+    '清空Access Token缓存',
+    (yargs) => {
+      return yargs
+        .option('appId', {
+          describe: '指定要清空缓存的公众号AppID',
+          type: 'string'
+        })
+        .option('all', {
+          describe: '清空所有公众号的缓存',
+          type: 'boolean',
+          default: false
+        });
+    },
+    async (argv) => {
+      try {
+        if (argv.all) {
+          WeChatPublisher.clearAllTokenCache();
+          logger.success('✅ 所有公众号的Access Token缓存已清空。');
+        } else if (argv.appId) {
+          WeChatPublisher.clearTokenCache(argv.appId);
+          logger.success(`✅ 公众号 ${argv.appId} 的Access Token缓存已清空。`);
+        } else {
+          // 清空当前环境变量配置的公众号缓存
+          const appId = process.env.WECHAT_APP_ID;
+          if (appId) {
+            WeChatPublisher.clearTokenCache(appId);
+            logger.success('✅ 当前公众号的Access Token缓存已清空。');
+          } else {
+            logger.error('❌ 未找到公众号配置，请指定 --appId 参数');
+          }
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    }
+  );
+
+
+
+  // 微信兼容性检查命令
   cli.command(
     'mcp-info',
     '显示MCP服务器信息',

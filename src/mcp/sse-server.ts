@@ -113,6 +113,47 @@ const TOOLS = [
       properties: {},
       additionalProperties: false
     }
+  },
+  {
+    name: 'list_accounts',
+    description: '列出所有微信公众号账号',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'switch_account',
+    description: '切换活跃账号',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        accountId: {
+          type: 'string',
+          description: '要切换到的账号ID'
+        }
+      },
+      required: ['accountId']
+    }
+  },
+  {
+    name: 'clear_account_cache',
+    description: '清空指定账号的token缓存',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        accountId: {
+          type: 'string',
+          description: '账号ID（可选，默认清空当前活跃账号）'
+        },
+        all: {
+          type: 'boolean',
+          description: '是否清空所有账号的缓存',
+          default: false
+        }
+      }
+    }
   }
 ];
 
@@ -247,6 +288,12 @@ export class WeChatPublisherSSEMCPServer {
         return await this.handleProcessContent(args);
       case 'get_config':
         return await this.handleGetConfig();
+      case 'list_accounts':
+        return await this.handleListAccounts();
+      case 'switch_account':
+        return await this.handleSwitchAccount(args);
+      case 'clear_account_cache':
+        return await this.handleClearAccountCache(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -255,9 +302,10 @@ export class WeChatPublisherSSEMCPServer {
   /**
    * 获取或创建发布器实例
    */
-  private getPublisher(config?: any): WeChatPublisher {
-    if (!this.publisher || config) {
-      this.publisher = new WeChatPublisher(config);
+  private getPublisher(config?: Partial<Config>): WeChatPublisher {
+    // 如果传入了config，或者当前没有publisher实例，则创建新的
+    if (config || !this.publisher) {
+      this.publisher = new WeChatPublisher(config || {});
     }
     return this.publisher;
   }
@@ -472,9 +520,9 @@ export class WeChatPublisherSSEMCPServer {
    * 处理获取配置
    */
   private async handleGetConfig() {
-    const hasAppId = !!process.env.WECHAT_APP_ID;
-    const hasAppSecret = !!process.env.WECHAT_APP_SECRET;
-    const nodeEnv = process.env.NODE_ENV || 'development';
+    const { accountManager } = await import('../core/account-manager');
+    const stats = accountManager.getStats();
+    const activeAccount = accountManager.getActiveAccount();
 
     return {
       content: [
@@ -483,20 +531,209 @@ export class WeChatPublisherSSEMCPServer {
           text: JSON.stringify({
             success: true,
             config: {
-              hasAppId,
-              hasAppSecret,
-              nodeEnv,
-              isConfigured: hasAppId && hasAppSecret,
+              nodeEnv: process.env.NODE_ENV || 'development',
               transport: 'sse',
-              serverStats: this.transport.getStats()
+              serverStats: this.transport.getStats(),
+              accountStats: stats,
+              activeAccount: activeAccount ? {
+                appId: activeAccount.appId,
+                name: activeAccount.name,
+                useStableToken: activeAccount.useStableToken
+              } : null,
+              isConfigured: !!activeAccount
             },
-            message: hasAppId && hasAppSecret 
-              ? '配置完整，可以正常使用' 
-              : '请设置 WECHAT_APP_ID 和 WECHAT_APP_SECRET 环境变量'
+            message: activeAccount 
+              ? `当前使用账号: ${activeAccount.name || activeAccount.appId}` 
+              : '没有可用的账号配置'
           }, null, 2)
         }
       ]
     };
+  }
+
+  /**
+   * 处理列出账号
+   */
+  private async handleListAccounts() {
+    const { accountManager } = await import('../core/account-manager');
+    const accounts = accountManager.getAllAccounts();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            accounts: accounts.map(account => ({
+              appId: account.appId,
+              name: account.name,
+              description: account.description,
+              isActive: account.isActive,
+              tokenStatus: account.tokenStatus,
+              tokenExpiresAt: account.tokenExpiresAt,
+              lastUsed: account.lastUsed,
+              useStableToken: account.useStableToken
+            })),
+            stats: accountManager.getStats()
+          }, null, 2)
+        }
+      ]
+    };
+  }
+
+  /**
+   * 处理切换账号
+   */
+  private async handleSwitchAccount(args: any) {
+    const { accountId } = args;
+    const { accountManager } = await import('../core/account-manager');
+
+    try {
+      accountManager.setActiveAccount(accountId);
+      const account = accountManager.getAccount(accountId);
+      
+      // 重置发布器实例以使用新账号
+      this.publisher = null;
+
+      // 广播账号切换事件
+      this.transport.broadcast({
+        type: 'account_switched',
+        data: {
+          accountId,
+          account: {
+            appId: account?.appId,
+            name: account?.name,
+            description: account?.description
+          }
+        }
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `已切换到账号: ${accountId}`,
+              account: {
+                appId: account?.appId,
+                name: account?.name,
+                description: account?.description
+              }
+            }, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }
+        ]
+      };
+    }
+  }
+
+  /**
+   * 处理清空账号缓存
+   */
+  private async handleClearAccountCache(args: any) {
+    const { accountId, all = false } = args;
+    const { accountManager } = await import('../core/account-manager');
+
+    try {
+      if (all) {
+        accountManager.clearAllCache();
+        
+        // 广播缓存清理事件
+        this.transport.broadcast({
+          type: 'cache_cleared',
+          data: { scope: 'all' }
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                message: '已清空所有账号的token缓存'
+              }, null, 2)
+            }
+          ]
+        };
+      } else if (accountId) {
+        accountManager.clearAccountCache(accountId);
+        
+        this.transport.broadcast({
+          type: 'cache_cleared',
+          data: { scope: 'account', accountId }
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                message: `已清空账号 ${accountId} 的token缓存`
+              }, null, 2)
+            }
+          ]
+        };
+      } else {
+        const activeAccountId = accountManager.getActiveAccountId();
+        if (activeAccountId) {
+          accountManager.clearAccountCache(activeAccountId);
+          
+          this.transport.broadcast({
+            type: 'cache_cleared',
+            data: { scope: 'active', accountId: activeAccountId }
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  success: true,
+                  message: `已清空当前活跃账号的token缓存`
+                }, null, 2)
+              }
+            ]
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  success: false,
+                  error: '没有活跃账号'
+                }, null, 2)
+              }
+            ]
+          };
+        }
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }
+        ]
+      };
+    }
   }
 
   /**
