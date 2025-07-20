@@ -5,6 +5,12 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.3]
+
+### 🐛 关键修复
+- 🔧 **修复npx命令问题**: 修正package.json中bin路径配置，解决npx无法启动MCP服务器的问题
+- ✨ **确保MCP服务器可用**: 现在可以通过npx正常启动MCP服务器
+
 ## [1.0.2]
 
 ### 🐛 问题修复
