@@ -17,7 +17,7 @@ export async function runCli() {
   const cli = yargs(hideBin(process.argv))
     .scriptName('wechat-official-publisher')
     .usage('Usage: $0 <command> [options]')
-    .version(JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')).version)
+    .version(JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')).version)
     .help()
     .alias('h', 'help')
     .alias('v', 'version');
@@ -252,7 +252,7 @@ export async function runCli() {
         }
 
         // 显示详细的启动信息
-        const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+        const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
 
         logger.info('🚀 WeChat Official Publisher MCP Server');
         logger.info(`📦 版本: ${packageJson.version}`);
@@ -325,7 +325,7 @@ export async function runCli() {
     () => { },
     async () => {
       try {
-        const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+        const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
 
         logger.info('🔧 MCP服务器信息:');
         logger.info(`📦 名称: ${packageJson.name}`);
@@ -400,47 +400,6 @@ export async function runCli() {
   );
 
 
-
-  // 微信兼容性检查命令
-  cli.command(
-    'mcp-info',
-    '显示MCP服务器信息',
-    () => { },
-    async () => {
-      try {
-        const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
-
-        logger.info('🔧 MCP服务器信息:');
-        logger.info(`📦 名称: ${packageJson.name}`);
-        logger.info(`🔖 版本: ${packageJson.version}`);
-        logger.info(`👤 作者: ${packageJson.author}`);
-        logger.info(`📄 描述: ${packageJson.description}`);
-        logger.info('');
-
-        logger.info('🎯 可用工具:');
-        logger.info('  • publish_article - 发布文章到微信公众号');
-        logger.info('  • preview_article - 预览文章效果');
-        logger.info('  • list_themes - 获取可用主题列表');
-        logger.info('  • process_content - 处理文章内容');
-        logger.info('  • get_config - 获取配置信息');
-        logger.info('');
-
-        logger.info('🔗 传输协议: stdio');
-        logger.info('📋 配置要求:');
-        logger.info('  • WECHAT_APP_ID - 微信公众号AppID');
-        logger.info('  • WECHAT_APP_SECRET - 微信公众号AppSecret');
-        logger.info('');
-
-        logger.info('💡 使用方法:');
-        logger.info('  npm run mcp-server');
-        logger.info('  或');
-        logger.info('  wechat-official-publisher mcp-server');
-
-      } catch (error) {
-        handleError(error);
-      }
-    }
-  );
 
   // 微信兼容性检查命令
   cli.command(

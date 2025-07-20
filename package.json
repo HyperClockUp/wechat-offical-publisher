@@ -1,6 +1,6 @@
 {
   "name": "wechat-official-publisher",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "author": "chengfx",
   "email": "cfx_software@163.com",
   "description": "微信文章自动发布工具，支持多账号管理、网络图片上传、stable_token接口和MCP协议",
@@ -30,6 +30,14 @@
     "model-context-protocol"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HyperClockUp/wechat-offical-publisher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HyperClockUp/wechat-offical-publisher/issues"
+  },
+  "homepage": "https://github.com/HyperClockUp/wechat-offical-publisher#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "@types/form-data": "^2.2.1",

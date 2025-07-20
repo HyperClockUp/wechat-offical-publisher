@@ -7,6 +7,21 @@
 <div align="center">
   <h3>一个功能强大的微信公众号文章自动发布工具</h3>
   <p>支持 Markdown 转换、网络图片上传、多公众号管理和 MCP 协议集成</p>
+  
+  <p>
+    <a href="https://www.npmjs.com/package/wechat-official-publisher">
+      <img src="https://img.shields.io/npm/v/wechat-official-publisher.svg" alt="npm version">
+    </a>
+    <a href="https://www.npmjs.com/package/wechat-official-publisher">
+      <img src="https://img.shields.io/npm/dm/wechat-official-publisher.svg" alt="npm downloads">
+    </a>
+    <a href="https://github.com/HyperClockUp/wechat-offical-publisher">
+      <img src="https://img.shields.io/github/stars/HyperClockUp/wechat-offical-publisher.svg" alt="GitHub stars">
+    </a>
+    <a href="https://github.com/HyperClockUp/wechat-offical-publisher/blob/master/LICENSE">
+      <img src="https://img.shields.io/github/license/HyperClockUp/wechat-offical-publisher.svg" alt="license">
+    </a>
+  </p>
 </div>
 
 ## ✨ 核心功能
@@ -131,25 +146,32 @@ npx wechat-official-publisher mcp-server
 
 #### MCP 故障排除
 
-如果遇到 "Connection closed" 错误，请尝试：
+如果遇到连接问题，请尝试：
 
 1. **检查包版本**：确保使用最新版本
    ```bash
    npm install -g wechat-official-publisher@latest
    ```
 
-2. **验证命令**：手动测试MCP服务器启动
+2. **验证MCP服务器**：手动测试MCP服务器启动
    ```bash
    npx wechat-official-publisher mcp-server --debug
    ```
 
-3. **检查环境变量**：确保设置了必要的环境变量
+3. **查看服务器信息**：检查MCP服务器状态
+   ```bash
+   npx wechat-official-publisher mcp-info
+   ```
+
+4. **检查环境变量**：确保设置了必要的环境变量
    ```bash
    echo $WECHAT_APP_ID
    echo $WECHAT_APP_SECRET
    ```
 
-4. **重新连接**：在MCP客户端中重新连接服务器
+5. **重新连接**：在MCP客户端中重新连接服务器
+
+> **注意**: v1.0.2版本已修复所有已知的MCP连接问题，服务器现已完全稳定。
 
 ## 🎨 主题系统
 
@@ -228,6 +250,20 @@ npm run lint
 
 ## 📝 更新日志
 
+### v1.0.2
+
+#### 🐛 问题修复
+- 🔧 **修复MCP服务器路径问题**: 解决CLI中package.json路径错误导致的启动失败
+- 🛠️ **删除重复命令**: 移除CLI中重复的mcp-info命令定义
+- ✨ **优化MCP服务器**: 确保所有MCP命令都能正常工作，MCP服务器现已完全稳定
+- 📋 **完善错误处理**: 改进CLI命令的错误处理和日志输出
+
+### v1.0.1
+
+#### 📚 文档更新
+- 📖 添加GitHub仓库信息和链接
+- 🎨 美化README，添加npm和GitHub徽章
+
 ### v1.0.0
 
 #### 🎉 首次正式发布
@@ -254,10 +290,20 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 如果你在使用过程中遇到问题，可以：
 
-1. 查看 [文档](docs/)
-2. 提交 [Issue](https://github.com/your-username/wechat-official-publisher/issues)
+1. 查看 [GitHub仓库](https://github.com/HyperClockUp/wechat-offical-publisher)
+2. 提交 [Issue](https://github.com/HyperClockUp/wechat-offical-publisher/issues)
 3. 联系作者：cfx_software@163.com
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 这个仓库
+2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交你的修改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开一个 Pull Request
 
 ---
 
-⭐ 如果这个项目对你有帮助，请给个 Star！
+⭐ 如果这个项目对你有帮助，请给个 [Star](https://github.com/HyperClockUp/wechat-offical-publisher)！
